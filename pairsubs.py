@@ -4,6 +4,7 @@ import base64
 import zlib
 import srt
 from bs4 import UnicodeDammit
+from terminaltables import AsciiTable
 
 lang = ['ru','en']
 
@@ -21,12 +22,19 @@ def select_sub(subtitles, lang):
     print("Select_sub: Lang - {}, Found - {}".format(lang, True if top_sub else False))
     return top_sub
 
+def save_sub(sub,data):
+    name = '_'.join([sub['MovieName'],sub['IDMovieImdb'],sub['ISO639']])
+    f = open(name,'w')
+    f.write(data)
+    f.close()
+
 def download_sub(token, proxy, sub):
     result = proxy.DownloadSubtitles(token,[sub['IDSubtitleFile']])
     data_zipped = base64.b64decode(result['data'][0]['data'])
     data_str = zlib.decompress(data_zipped, 15+32)
-    data_dec = UnicodeDammit(data_str)
-    return list(srt.parse(data_dec.unicode_markup))
+    data = UnicodeDammit(data_str).unicode_markup
+    save_sub(sub, data)
+    return list(srt.parse(data))
 
 
 def get_subs(imdbid, lang_first, lang_sec):
@@ -55,9 +63,12 @@ def get_subs(imdbid, lang_first, lang_sec):
 
 
 if __name__ == '__main__':
-    subs = get_subs(3322314, 'en', 'ru')
+    #subs = get_subs(3322314, 'en', 'ru')
+    #subs = get_subs(2283362, 'en', 'ru')
+    subs = get_subs(3896198, 'en', 'ru')
+    table_data = []
     for i in range(min(len(subs[0]), len(subs[1]))):
-        print(subs[0][i].content[:50],subs[1][i].content[:50])
-    #import ipdb; ipdb.set_trace()
-
-
+        row = [subs[0][i].content, subs[1][i].content]
+        table_data.append(row)
+    table = AsciiTable(table_data)
+    print(table.table)
