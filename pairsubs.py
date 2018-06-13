@@ -104,7 +104,7 @@ if __name__ == '__main__':
     sub_id = int(sys.argv[1])
     pp = Opensubtitles()
     pp.login()
-    import ipdb; ipdb.set_trace()
+    #import ipdb; ipdb.set_trace()
 
     sub = pp.search_sub(sub_id, 'en')
     if sub:
