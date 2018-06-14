@@ -52,6 +52,10 @@ class Opensubtitles:
         with open(name, 'w') as f:
             f.write(data)
 
+    def _save_sub_bin_(self, name, data):
+        with open(name, 'wb') as f:
+            f.write(data)
+
     def search_sub(self, imdbid, lang):
         '''
         Search the subtitles in Opensubtitles database
@@ -64,7 +68,6 @@ class Opensubtitles:
         Returns:
             sub (dict): subtitle in Opensubtitles API format
         '''
-        import ipdb; ipdb.set_trace()
         try:
             result = self.proxy.SearchSubtitles(self.token,
                          [{'imdbid': str(imdbid), 'sublanguageid': lang}], [100])
@@ -74,7 +77,7 @@ class Opensubtitles:
 
             return self._select_sub_(result['data'])
 
-    def download_sub(self, sub, save=True):
+    def download_sub(self, sub, save=True, save_orig=True, encoding=None):
         ''' Download subtitles from subtitles.org.
             Return subtitles file as a list of <Subtitle> objects.
             Save argument controls whether the subtitles will be written to a file.
@@ -86,13 +89,22 @@ class Opensubtitles:
         else:
             data_zipped = base64.b64decode(result['data'][0]['data'])
             data_str = zlib.decompress(data_zipped, 15+32)
-            data = UnicodeDammit(data_str).unicode_markup
+            if encoding:
+                data = data_str.decode(encoding)
+            else:
+                data = UnicodeDammit(data_str).unicode_markup
 
             if save:
                 file_name = '_'.join([sub['MovieName'], sub['IDMovieImdb'], sub['ISO639']])
                 file_name = file_name.replace(' ', '_')
                 file_name = file_name.replace('"', '')
                 self._save_sub_(file_name, data)
+            if save_orig:
+                file_name = '_'.join([sub['MovieName'], sub['IDMovieImdb'], sub['ISO639']])
+                file_name = file_name.replace(' ', '_')
+                file_name = file_name.replace('"', '')
+                file_name += '_orig'
+                self._save_sub_bin_(file_name, data_str)
             return list(srt.parse(data))
 
 
@@ -110,13 +122,31 @@ class SubPair:
         self._analyze_pair_(sub1, sub2)
 
     @classmethod
-    def load(cls, file1, file2):
-        with open(file1, 'r') as f:
-            sub1 = list(srt.parse(f.read()))
-        with open(file2, 'r') as f:
-            sub2 = list(srt.parse(f.read()))
+    def read(cls, file1, file2):
+        subs = []
+        for file_name in (file1, file2):
+            with open(file_name, 'r') as f:
+                subs.append(list(srt.parse(f.read())))
 
-        return cls(sub1, sub2)
+        return cls(*subs)
+
+    @classmethod
+    def download(cls, imdbid, lang1, lang2, encoding=None):
+        osub = Opensubtitles()
+        osub.login()
+
+        subs = []
+
+        for lang in [lang1, lang2]:
+            sub = osub.search_sub(imdbid, lang)
+            if sub:
+                print("Downloading {} ...".format(lang))
+                subs.append(osub.download_sub(sub, encoding=encoding))
+            else:
+                print("Subtitles #{} isn't found".format(imdbid))
+                return None
+
+        return cls(*subs)
 
     def _get_sub_info(self, sub):
         length = sub[-1].start
@@ -129,7 +159,6 @@ class SubPair:
     def print_pair(self, offset=0, count=1, shift=0):
         start = self.max_time*offset/100
 
-        #import ipdb; ipdb.set_trace()
         s1 = self._get_lines_(self.sub1, start, count)
         pl = self._wrap_line_(s1)
 
@@ -166,25 +195,37 @@ if __name__ == '__main__':
 
     import sys
     sub_id = int(sys.argv[1])
-    pp = Opensubtitles()
-    pp.login()
 
-    sub = pp.search_sub(sub_id, 'eng')
-    if sub:
-        print("Downloading En...")
-        s_en = pp.download_sub(sub)
-    sub = pp.search_sub(sub_id, 'rus')
-    if sub:
-        print("Downloading Ru...")
-        s_ru = pp.download_sub(sub)
+    p = SubPair.download(sub_id, 'ita', 'eng', encoding='cp1251')
+    if p:
+        p.print_pair(35, 20, 0)
 
-    d = SubPair(s_ru, s_en)
-    d.print_pair(35, 20, 0)
-    import ipdb; ipdb.set_trace()
 
-    p = SubPair.load("Luke_Cage_Step_in_the_Arena_4179636_ru","Luke_Cage_Step_in_the_Arena_4179636_en")
 
-    p.print_pair(35, 20, 0)
-    #import ipdb; ipdb.set_trace()
+#     pp = Opensubtitles()
+#     pp.login()
+
+#     sub = pp.search_sub(sub_id, 'eng')
+#     if sub:
+#         print("Downloading En...")
+#         s_en = pp.download_sub(sub)
+#     else:
+#         print("Subtitles #{} isn't found".format(sub_id))
+#     sub = pp.search_sub(sub_id, 'rus')
+#     if sub:
+#         print("Downloading Ru...")
+#         s_ru = pp.download_sub(sub)
+#     else:
+#         print("Subtitles #{} isn't found".format(sub_id))
+
+    # if s_ru and s_en:
+    #     d = SubPair(s_ru, s_en)
+    #     d.print_pair(35, 20, 0)
+    #     import ipdb; ipdb.set_trace()
+
+    #     p = SubPair.load("Luke_Cage_Step_in_the_Arena_4179636_ru","Luke_Cage_Step_in_the_Arena_4179636_en")
+
+    #     p.print_pair(35, 20, 0)
+    #     #import ipdb; ipdb.set_trace()
 
 
