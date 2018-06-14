@@ -1,12 +1,12 @@
 import xmlrpc.client
-import datetime
 import base64
 import zlib
 import srt
 from bs4 import UnicodeDammit
-from terminaltables import AsciiTable
+import textwrap
+import itertools
 
-lang = ['ru','en']
+COLUMN_WIDTH = 40
 
 class Opensubtitles:
     ''' opensuntitles.org access'''
@@ -16,13 +16,14 @@ class Opensubtitles:
     def __init__(self):
         '''Init xml-rpc proxy'''
 
-        self.proxy = xmlrpc.client.ServerProxy("https://api.opensubtitles.org/xml-rpc")
+        self.proxy = xmlrpc.client.ServerProxy(
+                "https://api.opensubtitles.org/xml-rpc")
 
     def logout(self):
         ''' Logout from api.opensubtitles.org.'''
 
         try:
-            login = self.proxy.LogOut(self.token)
+            self.proxy.LogOut(self.token)
         except xmlrpc.client.ProtocolError as err:
             print("Opensubtitles API protocol error: {0}".format(err))
 
@@ -30,7 +31,7 @@ class Opensubtitles:
         ''' Login into api.opensubtitles.org.'''
 
         try:
-            login = self.proxy.LogIn("","","en","TemporaryUserAgent")
+            login = self.proxy.LogIn("", "", "en", "TemporaryUserAgent")
         except xmlrpc.client.ProtocolError as err:
             print("Opensubtitles API protocol error: {0}".format(err))
         else:
@@ -38,7 +39,7 @@ class Opensubtitles:
 
     def _select_sub_(self, subtitles):
         ''' Select subtitles that have maximal downloads count'''
-        rate = 0;
+        rate = 0
         top_sub = None
 
         for sub in subtitles:
@@ -48,77 +49,142 @@ class Opensubtitles:
         return top_sub
 
     def _save_sub_(self, name, data):
-        with open(name,'w') as f:
+        with open(name, 'w') as f:
             f.write(data)
 
     def search_sub(self, imdbid, lang):
         '''
-        Search the subtitles in Opensubtitles database by IMBD id and a language.
-        Return dict as described in http://trac.opensubtitles.org/projects/opensubtitles/wiki/XMLRPC#SearchSubtitles
+        Search the subtitles in Opensubtitles database
+        by IMBD id and a language.
+        Return dict as described in
+        http://trac.opensubtitles.org/projects/opensubtitles/wiki/XMLRPC#SearchSubtitles
         Args:
             imdbid (int): Movie's IMDB id
             lang (str): Language of subtitles in ISO639 format
         Returns:
             sub (dict): subtitle in Opensubtitles API format
         '''
-        #import ipdb; ipdb.set_trace()
+        import ipdb; ipdb.set_trace()
         try:
             result = self.proxy.SearchSubtitles(self.token,
-                            [{'imdbid':str(imdbid), 'sublanguageid':lang}],[100])
+                         [{'imdbid': str(imdbid), 'sublanguageid': lang}], [100])
         except xmlrpc.client.ProtocolError as err:
             print("Opensubtitles API protocol error: {0}".format(err))
         else:
 
             return self._select_sub_(result['data'])
 
-    def download_sub(self, sub, save = True):
+    def download_sub(self, sub, save=True):
         ''' Download subtitles from subtitles.org.
             Return subtitles file as a list of <Subtitle> objects.
             Save argument controls whether the subtitles will be written to a file.
         '''
         try:
-            result = self.proxy.DownloadSubtitles(self.token,[sub['IDSubtitleFile']])
+            result = self.proxy.DownloadSubtitles(self.token, [sub['IDSubtitleFile']])
         except xmlrpc.client.ProtocolError as err:
             print("Opensubtitles API protocol error: {0}".format(err))
         else:
             data_zipped = base64.b64decode(result['data'][0]['data'])
             data_str = zlib.decompress(data_zipped, 15+32)
             data = UnicodeDammit(data_str).unicode_markup
-            file_name = '_'.join([sub['MovieName'],sub['IDMovieImdb'],sub['ISO639']])
+
             if save:
+                file_name = '_'.join([sub['MovieName'], sub['IDMovieImdb'], sub['ISO639']])
+                file_name = file_name.replace(' ', '_')
+                file_name = file_name.replace('"', '')
                 self._save_sub_(file_name, data)
             return list(srt.parse(data))
 
 
-def print_pair(sub_l, sub_r):
-    table_data = []
-    for i in range(min(len(sub_l), len(sub_r))):
-        row = [sub_l[i].content, sub_r[i].content]
-        table_data.append(row)
-    table = AsciiTable(table_data)
-    print(table.table)
+class SubPair:
+    ''' Pair of subtitles'''
+
+    def __init__(self, sub1, sub2):
+        '''
+        Args:
+            sub1: list of Subtitles for the first set
+            sub2: list of Subtitles for the second set
+        '''
+        self.sub1 = sub1
+        self.sub2 = sub2
+        self._analyze_pair_(sub1, sub2)
+
+    @classmethod
+    def load(cls, file1, file2):
+        with open(file1, 'r') as f:
+            sub1 = list(srt.parse(f.read()))
+        with open(file2, 'r') as f:
+            sub2 = list(srt.parse(f.read()))
+
+        return cls(sub1, sub2)
+
+    def _get_sub_info(self, sub):
+        length = sub[-1].start
+        return length
+
+    def _analyze_pair_(self, sub1, sub2):
+        self.max_time = min(self._get_sub_info(sub1),
+                            self._get_sub_info(sub2))
+
+    def print_pair(self, offset=0, count=1, shift=0):
+        start = self.max_time*offset/100
+
+        #import ipdb; ipdb.set_trace()
+        s1 = self._get_lines_(self.sub1, start, count)
+        pl = self._wrap_line_(s1)
+
+        s2 = self._get_lines_(self.sub2, start, count, shift=shift)
+        pr = self._wrap_line_(s2)
+
+        out = itertools.zip_longest(pl, pr, fillvalue="")
+
+        for s in out:
+            print("{}  |  {}".format(s[0]+(COLUMN_WIDTH-len(s[0]))*" ", s[1]))
+
+    def _get_lines_(self, sub, start_time, count, shift=0):
+        start_index = 0
+        for s in sub:
+            if s.start >= start_time:
+                start_index = sub.index(s)
+                break
+        return sub[start_index+shift:start_index+shift+count]
+
+    def _wrap_line_(self, subtitles):
+        line = ""
+        for s in subtitles:
+            line += s.content
+            line += "\n----\n"
+
+        lines = line.splitlines()
+        res = []
+        for line in lines:
+            res += textwrap.wrap(line,COLUMN_WIDTH)
+        return res
 
 
 if __name__ == '__main__':
+
     import sys
     sub_id = int(sys.argv[1])
     pp = Opensubtitles()
     pp.login()
+
+    sub = pp.search_sub(sub_id, 'eng')
+    if sub:
+        print("Downloading En...")
+        s_en = pp.download_sub(sub)
+    sub = pp.search_sub(sub_id, 'rus')
+    if sub:
+        print("Downloading Ru...")
+        s_ru = pp.download_sub(sub)
+
+    d = SubPair(s_ru, s_en)
+    d.print_pair(35, 20, 0)
+    import ipdb; ipdb.set_trace()
+
+    p = SubPair.load("Luke_Cage_Step_in_the_Arena_4179636_ru","Luke_Cage_Step_in_the_Arena_4179636_en")
+
+    p.print_pair(35, 20, 0)
     #import ipdb; ipdb.set_trace()
 
-    sub = pp.search_sub(sub_id, 'en')
-    if sub:
-        s_en = pp.download_sub(sub)
-    sub = pp.search_sub(sub_id, 'ru')
-    if sub:
-        s_ru = pp.download_sub(sub)
-    print_pair(s_ru, s_en)
 
-
-#    import ipdb; ipdb.set_trace()
-
-
-
-    #subs = get_subs(3322314, 'en', 'ru')
-    #subs = get_subs(2283362, 'en', 'ru')
-    # subs = get_subs(3896198, 'en', 'ru')
