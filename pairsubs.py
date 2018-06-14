@@ -120,6 +120,7 @@ class SubPair:
         self.sub1 = sub1
         self.sub2 = sub2
         self._analyze_pair_(sub1, sub2)
+        #self._equalize_subs_()
 
     @classmethod
     def read(cls, file1, file2):
@@ -155,6 +156,20 @@ class SubPair:
     def _analyze_pair_(self, sub1, sub2):
         self.max_time = min(self._get_sub_info(sub1),
                             self._get_sub_info(sub2))
+
+    def _equalize_subs_(self):
+        if self.sub1[-1].start > self.sub2[-1].start:
+            coeff = self.sub2[-1].start/self.sub1[-1].start
+            max_sub = self.sub1
+        else:
+            coeff = self.sub1[-1].start/self.sub2[-1].start
+            max_sub = self.sub2
+
+        for s in max_sub:
+            s.start *= coeff
+
+
+
 
     def print_pair(self, offset=0, count=1, shift=0):
         start = self.max_time*offset/100
@@ -198,7 +213,7 @@ if __name__ == '__main__':
 
     p = SubPair.download(sub_id, 'ita', 'eng', encoding='cp1251')
     if p:
-        p.print_pair(35, 20, 0)
+        p.print_pair(20, 20, 6)
 
 
 
