@@ -21,6 +21,7 @@ class Opensubtitles:
 
         self.proxy = xmlrpc.client.ServerProxy(
                 "https://api.opensubtitles.org/xml-rpc")
+        #import ipdb; ipdb.set_trace()
 
     def logout(self):
         ''' Logout from api.opensubtitles.org.'''
@@ -51,14 +52,6 @@ class Opensubtitles:
                 top_sub = sub
         return top_sub
 
-    def _save_sub_(self, name, data):
-        with open(name, 'w') as f:
-            f.write(data)
-
-    def _save_sub_bin_(self, name, data):
-        with open(name, 'wb') as f:
-            f.write(data)
-
     def search_sub(self, imdbid, lang):
         '''
         Search the subtitles in Opensubtitles database
@@ -67,7 +60,7 @@ class Opensubtitles:
         http://trac.opensubtitles.org/projects/opensubtitles/wiki/XMLRPC#SearchSubtitles
         Args:
             imdbid (int): Movie's IMDB id
-            lang (str): Language of subtitles in ISO639 format
+            lang (str): Language of subtitles in ISO639 format (3-letter)
         Returns:
             sub (dict): subtitle in Opensubtitles API format
         '''
@@ -80,9 +73,10 @@ class Opensubtitles:
             print("Opensubtitles API protocol error: {0}".format(err))
         else:
 
+            #import ipdb; ipdb.set_trace()
             return self._select_sub_(result['data'])
 
-    def download_sub(self, sub, save=True, save_orig=True, encoding=None):
+    def download_sub(self, sub):
         '''
         Download subtitles from subtitles.org.
         Return subtitles file as a bytearray
