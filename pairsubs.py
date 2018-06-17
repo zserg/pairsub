@@ -179,6 +179,19 @@ class Subs:
                 return lines
         return lines
 
+    def set_offset(self, sec):
+        '''
+        Args:
+            sec (int): offset in seconds
+        '''
+        self.offset = timedelta(seconds=sec)
+
+    def set_encoding(self, encoding):
+        self.encoding = encoding
+        data = self.sub_b.decode(self.encoding)
+        self.sub = list(srt.parse(data))
+        self._fix_subtitles_()
+
 
 class SubPair:
     ''' Pair of subtitles'''
@@ -242,8 +255,9 @@ if __name__ == '__main__':
     sub_id = int(sys.argv[1])
     p = SubPair.download(sub_id, 'rus', 'eng')
     p.print_pair(20, 20)
-
-    # import ipdb; ipdb.set_trace()
+    p.subs[0].set_encoding('cp1251')
+    #`import ipdb; ipdb.set_trace()
+    p.print_pair(20, 20)
     # sub_e = Subs.read("avengers_orig_en.srt")
     # sub_r = Subs.read("avengers_orig_ru.srt")
 
