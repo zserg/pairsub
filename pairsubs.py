@@ -6,6 +6,7 @@ from bs4 import UnicodeDammit
 import textwrap
 import itertools
 from datetime import timedelta
+import random
 
 COLUMN_WIDTH = 40
 
@@ -165,17 +166,15 @@ class Subs:
         Return list of <str> from subtitles
         whose timedelta are between start and stop.
         Args:
-            start (float): 0-100 - start time of subtitles
-                                   (percent of total length)
+            start (timedelta): 0-100 - start time of subtitles
             length (int):  duration in seconds
         '''
         lines = []
-        start_td = self.sub[-1].end * start/100 + self.offset
-        end_td = start_td + timedelta(seconds=length)
+        end = start + timedelta(seconds=length)
         for line in self.sub:
-            if line.start >= start_td and line.end <= end_td:
+            if line.start >= start and line.end <= end:
                 lines.append(line.content)
-            if line.start > end_td:
+            if line.start > end:
                 return lines
         return lines
 
@@ -237,9 +236,11 @@ class SubPair:
 
     def print_pair(self, offset=0, count=1):
 
+        #import ipdb; ipdb.set_trace()
+        start_td = self.subs[0].sub[-1].end * offset/100
         data = []
         for s in self.subs:
-            lines = s.get_lines(offset, count)
+            lines = s.get_lines(start_td, count)
             line = '\n'.join(lines)
             res = []
             for l in line.splitlines():
@@ -252,6 +253,13 @@ class SubPair:
         for s in out:
             print("{}  |  {}".format(s[0]+(COLUMN_WIDTH-len(s[0]))*" ", s[1]))
 
+    def print_pair_random(self, count=1):
+        offset = random.random() * 100
+        self.print_pair(offset, count)
+
+    def save_subs(self):
+        for sub in self.subs:
+           sub.save()
 
 if __name__ == '__main__':
 
@@ -260,7 +268,7 @@ if __name__ == '__main__':
     p = SubPair.download(sub_id, 'rus', 'eng')
     p.print_pair(20, 20)
     p.subs[0].set_encoding('cp1251')
-    #`import ipdb; ipdb.set_trace()
+    # import ipdb; ipdb.set_trace()
     p.print_pair(20, 20)
     # sub_e = Subs.read("avengers_orig_en.srt")
     # sub_r = Subs.read("avengers_orig_ru.srt")
