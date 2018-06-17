@@ -205,6 +205,10 @@ class SubPair:
         self.subs[0].offset = timedelta(seconds=0)
         self.subs[1].offset = timedelta(seconds=0)
 
+    def __repr__(self):
+        return "{}, {}".format(self.subs[0].__repr__(),
+                               self.subs[1].__repr__())
+
     @classmethod
     def download(cls, imdbid, lang1, lang2, enc1=None, enc2=None):
         osub = Opensubtitles()
@@ -215,7 +219,7 @@ class SubPair:
             sub = osub.search_sub(imdbid, lang)
             if sub:
                 sub_args = {'lang': lang}
-                sub_args['movie_name'] = sub['MovieName']
+                sub_args['movie_name'] = sub['MovieReleaseName']
                 sub_args['imdbid'] = sub['IDMovieImdb']
                 sub_args['lang'] = sub['SubLanguageID']
 
