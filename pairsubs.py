@@ -7,21 +7,31 @@ import textwrap
 import itertools
 from datetime import timedelta
 import random
+import os
+import json
+import codecs
+
 
 COLUMN_WIDTH = 40
 
+#: Directory in which to store PaiSubs cache.
+APP_DIR = '{}/.pairsubs'.format(os.path.expanduser('~'))
+
+#: File in which to store details aboud downloaded subtitles
+CACHE_DB = '{}/cache.json'.format(APP_DIR)
 
 class Opensubtitles:
-    ''' opensuntitles.org access'''
+    '''
+    Class for opensuntitles.org access
+    '''
 
-    user_agent = "TemporaryUserAgen"
+    user_agent = "TemporaryUserAgent"
 
     def __init__(self):
         '''Init xml-rpc proxy'''
 
         self.proxy = xmlrpc.client.ServerProxy(
                 "https://api.opensubtitles.org/xml-rpc")
-        #import ipdb; ipdb.set_trace()
 
     def logout(self):
         ''' Logout from api.opensubtitles.org.'''
@@ -62,7 +72,7 @@ class Opensubtitles:
             imdbid (int): Movie's IMDB id
             lang (str): Language of subtitles in ISO639 format (3-letter)
         Returns:
-            sub (dict): subtitle in Opensubtitles API format
+            sub (dict): subtitles info in Opensubtitles API format
         '''
         try:
             result = self.proxy.SearchSubtitles(
@@ -79,7 +89,10 @@ class Opensubtitles:
     def download_sub(self, sub):
         '''
         Download subtitles from subtitles.org.
-        Return subtitles file as a bytearray
+        Args:
+            sub (dict): subtitles info in Opensubtitles API format
+        Return:
+            data_bytes (bytes): downloaded subtitles
         '''
         try:
             result = self.proxy.DownloadSubtitles(self.token,
@@ -89,49 +102,46 @@ class Opensubtitles:
         else:
             data_zipped = base64.b64decode(result['data'][0]['data'])
             data_bytes = zlib.decompress(data_zipped, 15+32)
+            #import ipdb; ipdb.set_trace()
             return data_bytes
 
 
 class Subs:
+    '''
+    Base class for subtitles
+    '''
 
-    def __init__(self, sub_b, encoding=None,
-                 lang=None, movie_name=None, imdbid=None):
-        self.lang = lang if lang else ""
-        self.movie_name = movie_name if movie_name else ""
-        self.imdbid = imdbid if imdbid else ""
-        self.encoding = encoding
-        self.sub_b = sub_b
+    def __init__(self, sub_data, sub_info = {
+                  'SubLanguageID': None,
+                  'SubFileName': None,
+                  'SubEncoding': None,
+                  'MovieName': None,
+                  'IDMovieImdb': None}):
+        self.sub_b = sub_data
+        self.sub_info = sub_info
+        #import ipdb; ipdb.set_trace()
 
         # Decode bytearray to Unicode string
-        if self.encoding:
-            data = sub_b.decode(self.encoding)
+        if self.sub_info['SubEncoding']:
+            if self.sub_b.startswith(codecs.BOM_UTF8):
+                encoding = 'utf-8-sig'
+            else:
+                encoding = self.sub_info['SubEncoding']
+            data = self.sub_b.decode(encoding)
         else:
-            data = UnicodeDammit(sub_b).unicode_markup
+            data = UnicodeDammit(self.sub_b).unicode_markup
 
         self.sub = list(srt.parse(data))
         self._fix_subtitles_()
 
     def __repr__(self):
-        return "Subs: [{}] [{}] [{}]".format(self.movie_name,
-                                             self.imdbid,
-                                             self.lang)
+        return "Subs: [{}] [{}] [{}]".format(self.sub_info['MovieName'],
+                                             self.sub_info['IDMovieImdb'],
+                                             self.sub_info['SubLanguageID'])
 
     def save(self, name=None):
-        if name:
-            file_name = name
-        else:
-            file_name = '_'.join([self.movie_name, self.imdbid, self.lang])
-            file_name = file_name.replace(' ', '_')
-            file_name = file_name.replace('"', '')
-            file_name += '.srt'
-
-        if self.encoding:
-            data = self.sub_b.decode(self.encoding)
-            with open(file_name, 'w') as f:
-                f.write(data)
-        else:
-            with open(file_name, 'wb') as f:
-                f.write(self.sub_b)
+        with open(file_name, 'wb') as f:
+            f.write(self.sub_b)
 
     @classmethod
     def read(cls, name, encoding=None,
@@ -172,16 +182,9 @@ class Subs:
                 return lines
         return lines
 
-    def set_offset(self, sec):
-        '''
-        Args:
-            sec (int): offset in seconds
-        '''
-        self.offset = timedelta(seconds=sec)
-
     def set_encoding(self, encoding):
-        self.encoding = encoding
-        data = self.sub_b.decode(self.encoding)
+        self.sub_info['SubEncoding'] = encoding
+        data = self.sub_b.decode(self.sub_info['SubEncoding'])
         self.sub = list(srt.parse(data))
         self._fix_subtitles_()
 
@@ -194,9 +197,12 @@ class SubPair:
         Args:
             subs: list of <Subs> objects
         '''
+        self._cache_init_()
         self.subs = subs
-        self.subs[0].offset = timedelta(seconds=0)
-        self.subs[1].offset = timedelta(seconds=0)
+        self.offset = 0 # offset in seconds betwen subtitles in a pair
+        self.coeff = 1  # difference in duration between subtitles in a pair
+        #import ipdb; ipdb.set_trace()
+        self._append_to_cache_()
 
     def __repr__(self):
         return "{}, {}".format(self.subs[0].__repr__(),
@@ -211,14 +217,9 @@ class SubPair:
         for lang, enc in [(lang1, enc1), (lang2, enc2)]:
             sub = osub.search_sub(imdbid, lang)
             if sub:
-                sub_args = {'lang': lang}
-                sub_args['movie_name'] = sub['MovieReleaseName']
-                sub_args['imdbid'] = sub['IDMovieImdb']
-                sub_args['lang'] = sub['SubLanguageID']
-
                 print("Downloading {} ...".format(lang))
                 sub_b = osub.download_sub(sub)
-                s = Subs(sub_b, **sub_args)
+                s = Subs(sub_b, sub_info = sub)
                 subs.append(s)
             else:
                 print("Subtitles #{} isn't found".format(imdbid))
@@ -254,6 +255,77 @@ class SubPair:
     def save_subs(self):
         for sub in self.subs:
            sub.save()
+
+    def _cache_init_(self):
+        '''
+        Init cache
+        '''
+        # verify that the application directory (~/.pairsubs) exists,
+        #   else create it
+        if not os.path.exists(APP_DIR):
+            os.makedirs(APP_DIR)
+
+        # If the cache db doesn't exist we create it.
+        # Otherwise we only open for reading
+        if not os.path.isfile(CACHE_DB):
+            with open(CACHE_DB, 'a'):
+                os.utime(CACHE_DB, None)
+
+        self.cache_db = {}
+
+        # We know from above that this file exists so we open it
+        #   for reading only.
+        with open(CACHE_DB, 'r') as f:
+            try:
+                self.cache_db = json.load(f)
+            except ValueError:
+                pass
+
+    def set_params(self, offset, coeff):
+        import ipdb; ipdb.set_trace()
+        self.offset = offset
+        self.coeff = coeff
+        if self._is_in_cache_():
+            self.cache_db[self._get_key_()]['offset'] = self.offset
+            self.cache_db[self._get_key_()]['coeff'] = self.coeff
+            self._cache_write_()
+
+
+    def _get_key_(self):
+        return  '_'.join([
+                self.subs[0].sub_info['IDSubtitleFile'],
+                self.subs[1].sub_info['IDSubtitleFile']
+                ])
+
+    def _get_value_(self):
+        return  {'offset': self.offset,
+                 'coeff': self.coeff,
+                 'subs': [
+                    self.subs[0].sub_info,
+                    self.subs[1].sub_info
+                    ]}
+
+    def _cache_write_(self):
+        with open(CACHE_DB, 'w') as f:
+            f.write(json.dumps(self.cache_db))
+
+    def _append_to_cache_(self):
+        # load offset and coeff from cache if exists
+        if self._is_in_cache_():
+            key = self._get_key_()
+            self.offset = self.cache_db[key]['offset']
+            self.coeff = self.cache_db[key]['coeff']
+        # store info in cache if doesn't exists
+        if not self._is_in_cache_():
+            key = self._get_key_()
+            value = self._get_value_()
+            self.cache_db[key] = value
+            self._cache_write_()
+
+    def _is_in_cache_(self):
+        key = self._get_key_()
+        return key in self.cache_db
+
 
 if __name__ == '__main__':
 
