@@ -237,9 +237,8 @@ class SubPair:
         osub.logout()
         return cls(subs)
 
-    def print_pair(self, offset=0, count=1):
+    def print_pair(self, offset=0, count=1, hide_left=None, hide_right=None):
 
-        #import ipdb; ipdb.set_trace()
         start_td = self.subs[0].sub[-1].end * offset/100
         data = []
         for s in self.subs:
@@ -254,6 +253,13 @@ class SubPair:
         out = itertools.zip_longest(*data,  fillvalue="")
 
         for s in out:
+            s = list(s)
+            if hide_left:
+                s[0] = len(s[0])*" "
+
+            if hide_right:
+                s[1] = len(s[1])*" "
+
             print("{}  |  {}".format(s[0]+(COLUMN_WIDTH-len(s[0]))*" ", s[1]))
 
     def print_pair_random(self, count=1):
@@ -335,17 +341,15 @@ class SubPair:
         return key in self.cache_db
 
 
+def learn(pair, length):
+    while True:
+        offset = random.random() * 100
+        pair.print_pair(offset, length, hide_right=True)
+        input("Press Enter...")
+        pair.print_pair(offset, length, hide_right=False)
+        input("Press Enter...")
+
 if __name__ == '__main__':
 
-    import sys
-    sub_id = int(sys.argv[1])
-    p = SubPair.download(sub_id, 'rus', 'eng')
-    p.print_pair(20, 20)
-    p.subs[0].set_encoding('cp1251')
-    # import ipdb; ipdb.set_trace()
-    p.print_pair(20, 20)
-    # sub_e = Subs.read("avengers_orig_en.srt")
-    # sub_r = Subs.read("avengers_orig_ru.srt")
-
-    # pp = SubPair([sub_r, sub_e])
-    # pp.print_pair(offset, count)
+    s = SubPair.download(1492032, "rus", "eng")
+    learn(s, 20);
