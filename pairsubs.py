@@ -131,7 +131,8 @@ class Subs:
         else:
             data = UnicodeDammit(self.sub_b).unicode_markup
 
-        self.sub = list(srt.parse(data))
+        #import ipdb; ipdb.set_trace()
+        self.sub = self._parse_subtitles_(data)
         self._fix_subtitles_()
 
     def __repr__(self):
@@ -185,9 +186,16 @@ class Subs:
     def set_encoding(self, encoding):
         self.sub_info['SubEncoding'] = encoding
         data = self.sub_b.decode(self.sub_info['SubEncoding'])
-        self.sub = list(srt.parse(data))
+        self.sub = self._parse_subtitles_(data)
         self._fix_subtitles_()
 
+    def _parse_subtitles_(self, data):
+        try:
+            sub = list(srt.parse(data))
+            return sub
+        except ValueError as e:
+            print("Subtitles parsing failed: {}".format(e))
+            return []
 
 class SubPair:
     ''' Pair of subtitles'''
