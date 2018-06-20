@@ -141,7 +141,7 @@ class Subs:
                                              self.sub_info['SubLanguageID'])
 
     def save(self, name=None):
-        with open(file_name, 'wb') as f:
+        with open(self.sub_info['SubFileName'], 'wb') as f:
             f.write(self.sub_b)
 
     @classmethod
@@ -166,7 +166,7 @@ class Subs:
                 t = s.end
             i += 1
 
-    def get_lines(self, start, length):
+    def get_lines(self, start, length, srt_format=False):
         '''
         Return list of <str> from subtitles
         whose timedelta are between start and stop.
@@ -178,10 +178,13 @@ class Subs:
         end = start + timedelta(seconds=length)
         for line in self.sub:
             if line.start >= start and line.end <= end:
-                lines.append(line.content)
+                if srt_format:
+                    lines.append(line)
+                else:
+                    lines.append(line.content)
             if line.start > end:
-                return lines
-        return lines
+                return lines if not srt_format else srt.compose(lines).splitlines()
+        return lines if not srt_format else srt.compose(lines).splitlines()
 
     def set_encoding(self, encoding):
         self.sub_info['SubEncoding'] = encoding
@@ -237,12 +240,19 @@ class SubPair:
         osub.logout()
         return cls(subs)
 
-    def print_pair(self, offset=0, count=1, hide_left=None, hide_right=None):
+    def print_pair(self, offset=0, count=1, hide_left=None, hide_right=None, srt=False):
 
         start_td = self.subs[0].sub[-1].end * offset/100
         data = []
+        i = 0
         for s in self.subs:
-            lines = s.get_lines(start_td, count)
+            import ipdb; ipdb.set_trace()
+            if i == 0:
+                lines = s.get_lines(start_td, count, srt_format=srt)
+            else:
+                start_td_mod = (start_td + timedelta(seconds=self.offset))/self.coeff
+                lines = s.get_lines(start_td_mod, count/self.coeff, srt_format=srt)
+            i += 1
             line = '\n'.join(lines)
             res = []
             for l in line.splitlines():
@@ -265,6 +275,46 @@ class SubPair:
     def print_pair_random(self, count=1):
         offset = random.random() * 100
         self.print_pair(offset, count)
+
+    def print_start_and_end(self, count=4):
+        data = []
+        for sub in self.subs:
+            lines = srt.compose(sub.sub[:count])
+            res = []
+            for l in lines.splitlines():
+                res += textwrap.wrap(l, COLUMN_WIDTH)
+            data.append(res)
+
+        out = itertools.zip_longest(*data,  fillvalue="")
+
+        for s in out:
+            print("{}  |  {}".format(s[0]+(COLUMN_WIDTH-len(s[0]))*" ", s[1]))
+
+        print("----------------------------------------------------")
+        data = []
+        for sub in self.subs:
+            lines = srt.compose(sub.sub[-count:], reindex=False)
+            res = []
+            for l in lines.splitlines():
+                res += textwrap.wrap(l, COLUMN_WIDTH)
+            data.append(res)
+
+        out = itertools.zip_longest(*data,  fillvalue="")
+
+        for s in out:
+            print("{}  |  {}".format(s[0]+(COLUMN_WIDTH-len(s[0]))*" ", s[1]))
+
+    def align_subs(self, left_start, right_start, left_end, right_end):
+        l1 = self.subs[0].sub[left_start-1].start.seconds
+        l2 = self.subs[0].sub[left_end-1].start.seconds
+
+        r1 = self.subs[1].sub[right_start-1].start.seconds
+        r2 = self.subs[1].sub[right_end-1].start.seconds
+
+        offset = l1 - r1
+        coeff = (l2 - l1) / (r2 - r1)
+        self.set_params(offset, coeff)
+
 
     def save_subs(self):
         for sub in self.subs:
@@ -296,7 +346,7 @@ class SubPair:
                 pass
 
     def set_params(self, offset, coeff):
-        import ipdb; ipdb.set_trace()
+        #import ipdb; ipdb.set_trace()
         self.offset = offset
         self.coeff = coeff
         if self._is_in_cache_():
