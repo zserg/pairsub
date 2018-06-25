@@ -1,14 +1,19 @@
 import pytest
 from pairsubs import *
+import srt
 
 mocksubs = [
 {'SubDownloadsCnt':10, 'MovieReleaseName':'Release_10', 'IDMovieImdb':'ID_10', 'SubLanguageID':'Lang_10'},
 {'SubDownloadsCnt':20, 'MovieReleaseName':'Release_20', 'IDMovieImdb':'ID_20', 'SubLanguageID':'Lang_20'},
 ]
 
+mocksubsinfo = [
+        {'MovieName':'Name_10', 'SubEncoding':'utf-8', 'SubFileName':'File_10', 'SubLanguageID': 'Lang_10', 'IDMovieImdb': 'imdb_10', 'IDSubtitleFile': 10},
+        {'MovieName':'Name_20', 'SubEncoding':'utf-8', 'SubFileName':'File_20', 'SubLanguageID': 'Lang_20', 'IDMovieImdb': 'imdb_20', 'IDSubtitleFile': 20},
+]
+
 mocksrt = [
-"""
-1
+"""1
 00:00:01,000 --> 00:00:10,000
 Sentence #1
 
@@ -18,6 +23,14 @@ Sentence #2
 
 3
 00:00:21,000 --> 00:00:30,000
+Sentence #3
+
+4
+00:00:31,500 --> 00:00:35,200
+Sentence #3
+
+5
+00:00:40,020 --> 00:00:43,999
 Sentence #3
 """
 ,
@@ -95,4 +108,24 @@ def test_download_sub(monkeypatch):
     os.login()
     sub = os.download_sub({'IDSubtitleFile':12})
     assert sub == mocksrt[0].encode()
+
+
+
+class TestSubs:
+
+    def test_init(self):
+        sub_data = mocksrt[0].encode()
+        sub_info = mocksubsinfo[0]
+        s = Subs(sub_data, sub_info)
+        assert s.sub == list(srt.parse(mocksrt[0]))
+        #import ipdb; ipdb.set_trace()
+        assert s.sub_info == sub_info
+
+    def test_get_sub(self):
+        sub_data = mocksrt[0].encode()
+        sub_info = mocksubsinfo[0]
+        s = Subs(sub_data, sub_info)
+        start = srt.srt_timestamp_to_timedelta('00:00:10.500')
+        end = srt.srt_timestamp_to_timedelta('00:00:25.000')
+        assert s.get_subs(start, end) == list(srt.parse(mocksrt[0]))[1:3]
 

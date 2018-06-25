@@ -111,86 +111,101 @@ class Subs:
     Base class for subtitles
     '''
 
-    def __init__(self, sub_data, sub_info = {
-                  'SubLanguageID': None,
-                  'SubFileName': None,
-                  'SubEncoding': None,
-                  'MovieName': None,
-                  'IDMovieImdb': None}):
-        self.sub_b = sub_data
-        self.sub_info = sub_info
-        #import ipdb; ipdb.set_trace()
+    def __init__(self, sub_data, sub_info):
+        '''
+        Args:
+            sub_data (bytes): subtitles in SRT format
+            sub_ingo (:obj:`dict`): subtitles information
+        '''
+        #print(sub_info)
+        self.sub_info = {}
+        self.sub_info['SubLanguageID'] = sub_info.get('SubLanguageID', None)
+        self.sub_info['SubFileName'] = sub_info.get('SubFileName', None)
+        self.sub_info['SubEncoding'] = sub_info.get('SubEncoding', None)
+        self.sub_info['MovieName'] = sub_info.get('MovieName', None)
+        self.sub_info['IDMovieImdb'] = sub_info.get('IDMovieImdb', None)
+        self.sub_info['IDSubtitleFile'] = sub_info.get('IDSubtitleFile', None)
 
-        # Decode bytearray to Unicode string
-        if self.sub_info['SubEncoding']:
-            if self.sub_b.startswith(codecs.BOM_UTF8):
-                encoding = 'utf-8-sig'
-            else:
-                encoding = self.sub_info['SubEncoding']
-            data = self.sub_b.decode(encoding)
-        else:
-            data = UnicodeDammit(self.sub_b).unicode_markup
-
+        # Decode bytes to Unicode string
         #import ipdb; ipdb.set_trace()
-        self.sub = self._parse_subtitles_(data)
-        self._fix_subtitles_()
+        data_decoded = self.sub_decode(sub_data, self.sub_info['SubEncoding'])
+
+        # Parse bytes into a list of Subtitles objects
+        self.sub = self._parse_subtitles_(data_decoded)
+
+        # fix
+        #self._fix_subtitles_()
 
     def __repr__(self):
         return "Subs: [{}] [{}] [{}]".format(self.sub_info['MovieName'],
                                              self.sub_info['IDMovieImdb'],
                                              self.sub_info['SubLanguageID'])
+    @staticmethod
+    def sub_decode(data, encoding):
+        '''
+        Args:
+            sub_data (bytes): subtitles in SRT format
+            encoding: (str): encoding
+        '''
+        if encoding:
+            if data.startswith(codecs.BOM_UTF8):
+                enc = 'utf-8-sig'
+            else:
+                enc = encoding
+            return data.decode(enc)
+        else:
+            return UnicodeDammit(data).unicode_markup
+
 
     def save(self, name=None):
-        with open(self.sub_info['SubFileName'], 'wb') as f:
-            f.write(self.sub_b)
+        data = srt.compose(self.sub)
+        file_name = name if name else self.sub_info['SubFileName']
+        with open(file_name, 'wb') as f:
+            f.write(data)
 
-    @classmethod
-    def read(cls, name, encoding=None,
-             lang=None, movie_name=None, imdbid=None):
+    # @classmethod
+    # def read(cls, name, encoding=None,
+    #          lang=None, movie_name=None, imdbid=None):
 
-        subs_args = {'encoding': encoding, 'lang': lang,
-                     'movie_name': movie_name, 'imdbid': imdbid}
-        with open(name, 'rb') as f:
-            data = f.read()
+    #     subs_args = {'encoding': encoding, 'lang': lang,
+    #                  'movie_name': movie_name, 'imdbid': imdbid}
+    #     with open(name, 'rb') as f:
+    #         data = f.read()
 
-        return cls(data, **subs_args)
+    #     return cls(data, **subs_args)
 
-    def _fix_subtitles_(self):
-        t = timedelta(seconds=0)
-        i = 0
-        for s in self.sub:
-            if s.start < t:
-                self.sub.pop(i)
-                # print("removed: {}-{}".format(s.start, s.content))
-            else:
-                t = s.end
-            i += 1
+    # def _fix_subtitles_(self):
+    #     t = timedelta(seconds=0)
+    #     i = 0
+    #     for s in self.sub:
+    #         if s.start < t:
+    #             self.sub.pop(i)
+    #             # print("removed: {}-{}".format(s.start, s.content))
+    #         else:
+    #             t = s.end
+    #         i += 1
 
-    def get_lines(self, start, length, srt_format=False):
+    def get_subs(self, start, end):
         '''
         Return list of <str> from subtitles
-        whose timedelta are between start and stop.
+        whose timedelta is between start and stop.
         Args:
-            start (timedelta): 0-100 - start time of subtitles
-            length (int):  duration in seconds
+            start (timedelta): start time of subtitles
+            end (timedelta): end time of subtitles
+        Returns:
+            :obj:`list` of :obj:`Subtitles`
         '''
-        lines = []
-        end = start + timedelta(seconds=length)
-        for line in self.sub:
-            if line.start >= start and line.end <= end:
-                if srt_format:
-                    lines.append(line)
-                else:
-                    lines.append(line.content)
-            if line.start > end:
-                return lines if not srt_format else srt.compose(lines).splitlines()
-        return lines if not srt_format else srt.compose(lines).splitlines()
+        subs = []
+        for s in self.sub:
+            if s.start >= start and s.start <= end:
+                subs.append(s)
+        return subs
 
-    def set_encoding(self, encoding):
-        self.sub_info['SubEncoding'] = encoding
-        data = self.sub_b.decode(self.sub_info['SubEncoding'])
-        self.sub = self._parse_subtitles_(data)
-        self._fix_subtitles_()
+    # def set_encoding(self, encoding):
+    #     self.sub_info['SubEncoding'] = encoding
+    #     data = self.sub_b.decode(self.sub_info['SubEncoding'])
+    #     self.sub = self._parse_subtitles_(data)
+    #     self._fix_subtitles_()
 
     def _parse_subtitles_(self, data):
         try:
@@ -230,7 +245,8 @@ class SubPair:
             if sub:
                 print("Downloading {} ...".format(lang))
                 sub_b = osub.download_sub(sub)
-                s = Subs(sub_b, sub_info = sub)
+                #import ipdb; ipdb.set_trace()
+                s = Subs(sub_b, sub)
                 subs.append(s)
             else:
                 print("Subtitles #{} isn't found".format(imdbid))
@@ -239,6 +255,33 @@ class SubPair:
 
         osub.logout()
         return cls(subs)
+
+    def get_parallel_subs(self, start, length):
+        '''
+        Args:
+            start (float): 0-100 percenrage of full length from the begin
+            lenght (int): duration in seconds
+        Returns:
+            :obj:`tuple` of :obj:`list' of :obj:`Subtitles`
+        '''
+        #import ipdb; ipdb.set_trace()
+        start_td = self.subs[0].sub[-1].end * start/100
+        end_td = start_td + timedelta(seconds=length)
+
+        par_subs = []
+        first = True
+        for s in self.subs:
+            #import ipdb; ipdb.set_trace()
+            if first:
+                subs = s.get_subs(start_td, end_td)
+            else:
+                start_td_mod = (start_td + timedelta(seconds=self.offset))/self.coeff
+                end_td_mod = (end_td + timedelta(seconds=self.offset))/self.coeff
+                subs = s.get_subs(start_td_mod, end_td_mod)
+            par_subs.append(subs)
+            first = False
+
+        return par_subs
 
     def print_pair(self, offset=0, count=1, hide_left=None, hide_right=None, srt=False):
 
