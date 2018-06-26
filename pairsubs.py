@@ -285,22 +285,16 @@ class SubPair:
 
     def print_pair(self, offset=0, count=1, hide_left=None, hide_right=None, srt=False):
 
-        start_td = self.subs[0].sub[-1].end * offset/100
+        #import ipdb; ipdb.set_trace()
+        par_subs = self.get_parallel_subs(offset, count)
         data = []
-        i = 0
-        for s in self.subs:
-            import ipdb; ipdb.set_trace()
-            if i == 0:
-                lines = s.get_lines(start_td, count, srt_format=srt)
-            else:
-                start_td_mod = (start_td + timedelta(seconds=self.offset))/self.coeff
-                lines = s.get_lines(start_td_mod, count/self.coeff, srt_format=srt)
-            i += 1
-            line = '\n'.join(lines)
+        for subs in par_subs:
+            line = ""
+            for sub in subs:
+                line = "\n\n".join((line, sub.content))
             res = []
-            for l in line.splitlines():
+            for l in line.splitlines(keepends=True):
                 res += textwrap.wrap(l, COLUMN_WIDTH)
-
             data.append(res)
 
         out = itertools.zip_longest(*data,  fillvalue="")
