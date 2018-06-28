@@ -20,6 +20,7 @@ APP_DIR = '{}/.pairsubs'.format(os.path.expanduser('~'))
 #: File in which to store details aboud downloaded subtitles
 CACHE_DB = '{}/cache.json'.format(APP_DIR)
 
+
 class Opensubtitles:
     '''
     Class for opensuntitles.org access
@@ -82,8 +83,6 @@ class Opensubtitles:
         except xmlrpc.client.ProtocolError as err:
             print("Opensubtitles API protocol error: {0}".format(err))
         else:
-
-            #import ipdb; ipdb.set_trace()
             return self._select_sub_(result['data'])
 
     def download_sub(self, sub):
@@ -102,7 +101,6 @@ class Opensubtitles:
         else:
             data_zipped = base64.b64decode(result['data'][0]['data'])
             data_bytes = zlib.decompress(data_zipped, 15+32)
-            #import ipdb; ipdb.set_trace()
             return data_bytes
 
 
@@ -117,7 +115,6 @@ class Subs:
             sub_data (bytes): subtitles in SRT format
             sub_ingo (:obj:`dict`): subtitles information
         '''
-        #print(sub_info)
         self.sub_info = {}
         self.sub_info['SubLanguageID'] = sub_info.get('SubLanguageID', None)
         self.sub_info['SubFileName'] = sub_info.get('SubFileName', None)
@@ -127,19 +124,16 @@ class Subs:
         self.sub_info['IDSubtitleFile'] = sub_info.get('IDSubtitleFile', None)
 
         # Decode bytes to Unicode string
-        #import ipdb; ipdb.set_trace()
         data_decoded = self.sub_decode(sub_data, self.sub_info['SubEncoding'])
 
         # Parse bytes into a list of Subtitles objects
         self.sub = self._parse_subtitles_(data_decoded)
 
-        # fix
-        #self._fix_subtitles_()
-
     def __repr__(self):
         return "Subs: [{}] [{}] [{}]".format(self.sub_info['MovieName'],
                                              self.sub_info['IDMovieImdb'],
                                              self.sub_info['SubLanguageID'])
+
     @staticmethod
     def sub_decode(data, encoding):
         '''
@@ -155,7 +149,6 @@ class Subs:
             return data.decode(enc)
         else:
             return UnicodeDammit(data).unicode_markup
-
 
     def save(self, name=None):
         data = srt.compose(self.sub)
@@ -174,16 +167,6 @@ class Subs:
 
     #     return cls(data, **subs_args)
 
-    # def _fix_subtitles_(self):
-    #     t = timedelta(seconds=0)
-    #     i = 0
-    #     for s in self.sub:
-    #         if s.start < t:
-    #             self.sub.pop(i)
-    #             # print("removed: {}-{}".format(s.start, s.content))
-    #         else:
-    #             t = s.end
-    #         i += 1
 
     def get_subs(self, start, end):
         '''
@@ -215,6 +198,7 @@ class Subs:
             print("Subtitles parsing failed: {}".format(e))
             return []
 
+
 class SubPair:
     ''' Pair of subtitles'''
 
@@ -225,9 +209,9 @@ class SubPair:
         '''
         self._cache_init_()
         self.subs = subs
-        self.offset = 0 # offset in seconds betwen subtitles in a pair
+        self.offset = 0  # offset in seconds betwen subtitles in a pair
         self.coeff = 1  # difference in duration between subtitles in a pair
-        #import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         self._append_to_cache_()
 
     def __repr__(self):
@@ -245,7 +229,7 @@ class SubPair:
             if sub:
                 print("Downloading {} ...".format(lang))
                 sub_b = osub.download_sub(sub)
-                #import ipdb; ipdb.set_trace()
+                # import ipdb; ipdb.set_trace()
                 s = Subs(sub_b, sub)
                 subs.append(s)
             else:
@@ -264,28 +248,28 @@ class SubPair:
         Returns:
             :obj:`tuple` of :obj:`list' of :obj:`Subtitles`
         '''
-        #import ipdb; ipdb.set_trace()
         start_td = self.subs[0].sub[-1].end * start/100
         end_td = start_td + timedelta(seconds=length)
 
         par_subs = []
         first = True
         for s in self.subs:
-            #import ipdb; ipdb.set_trace()
             if first:
                 subs = s.get_subs(start_td, end_td)
             else:
-                start_td_mod = (start_td + timedelta(seconds=self.offset))/self.coeff
-                end_td_mod = (end_td + timedelta(seconds=self.offset))/self.coeff
+                start_td_mod = (start_td +
+                                timedelta(seconds=self.offset))/self.coeff
+                end_td_mod = (end_td +
+                              timedelta(seconds=self.offset))/self.coeff
                 subs = s.get_subs(start_td_mod, end_td_mod)
             par_subs.append(subs)
             first = False
 
         return par_subs
 
-    def print_pair(self, offset=0, count=1, hide_left=None, hide_right=None, srt=False):
+    def print_pair(self, offset=0, count=1,
+                   hide_left=None, hide_right=None, srt=False):
 
-        #import ipdb; ipdb.set_trace()
         par_subs = self.get_parallel_subs(offset, count)
         data = []
         for subs in par_subs:
@@ -352,10 +336,9 @@ class SubPair:
         coeff = (l2 - l1) / (r2 - r1)
         self.set_params(offset, coeff)
 
-
     def save_subs(self):
         for sub in self.subs:
-           sub.save()
+            sub.save()
 
     def _cache_init_(self):
         '''
@@ -383,7 +366,6 @@ class SubPair:
                 pass
 
     def set_params(self, offset, coeff):
-        #import ipdb; ipdb.set_trace()
         self.offset = offset
         self.coeff = coeff
         if self._is_in_cache_():
@@ -391,17 +373,16 @@ class SubPair:
             self.cache_db[self._get_key_()]['coeff'] = self.coeff
             self._cache_write_()
 
-
     def _get_key_(self):
-        return  '_'.join([
+        return '_'.join([
                 self.subs[0].sub_info['IDSubtitleFile'],
                 self.subs[1].sub_info['IDSubtitleFile']
                 ])
 
     def _get_value_(self):
-        return  {'offset': self.offset,
-                 'coeff': self.coeff,
-                 'subs': [
+        return {'offset': self.offset,
+                'coeff': self.coeff,
+                'subs': [
                     self.subs[0].sub_info,
                     self.subs[1].sub_info
                     ]}
@@ -436,7 +417,8 @@ def learn(pair, length):
         pair.print_pair(offset, length, hide_right=False)
         input("Press Enter...")
 
+
 if __name__ == '__main__':
 
     s = SubPair.download(1492032, "rus", "eng")
-    learn(s, 20);
+    learn(s, 20)
