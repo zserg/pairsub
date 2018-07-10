@@ -1,6 +1,11 @@
 import pytest
-from pairsubs import *
+
 import srt
+import xmlrpc.client
+import zlib
+import base64
+
+from pairsubs.pairsubs import Subs, SubPair, Opensubtitles
 
 mocksubs = [
 {'SubDownloadsCnt':10, 'MovieReleaseName':'Release_10', 'IDMovieImdb':'ID_10', 'SubLanguageID':'Lang_10'},
