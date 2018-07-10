@@ -209,9 +209,10 @@ class SubPair:
         '''
         self._cache_init_()
         self.subs = subs
-        self.offset = 0  # offset in seconds betwen subtitles in a pair
-        self.coeff = 1  # difference in duration between subtitles in a pair
-        # import ipdb; ipdb.set_trace()
+        self.first_start = 0
+        self.first_end = subs[0].sub[-1].start.total_seconds()
+        self.second_start = 0
+        self.second_end = subs[0].sub[-1].start.total_seconds()
         self._append_to_cache_()
 
     def __repr__(self):
@@ -248,24 +249,28 @@ class SubPair:
         Returns:
             :obj:`tuple` of :obj:`list' of :obj:`Subtitles`
         '''
-        start_td = self.subs[0].sub[-1].end * start/100
-        end_td = start_td + timedelta(seconds=length)
+        first_len = self.first_end - self.first_start
+        second_len = self.second_end - self.second_start
+        coeff = first_len/second_len
+        offset = first_len * start / 100
+
+        f_start = self.seconds_to_timedelta(self.first_start + offset)
+        f_end = self.seconds_to_timedelta(f_start + length)
+
+        s_start = self.seconds_to_timedelta(self.second_start + offset/coeff)
+        s_end = self.seconds_to_timedelta(s_start + length/coeff)
 
         par_subs = []
-        first = True
-        for s in self.subs:
-            if first:
-                subs = s.get_subs(start_td, end_td)
-            else:
-                start_td_mod = (start_td +
-                                timedelta(seconds=self.offset))/self.coeff
-                end_td_mod = (end_td +
-                              timedelta(seconds=self.offset))/self.coeff
-                subs = s.get_subs(start_td_mod, end_td_mod)
+        for s, params in zip(self.subs, [(f_start, f_end), (s_start, s_end)]):
+            subs = s.get_subs(*params)
             par_subs.append(subs)
-            first = False
 
         return par_subs
+
+    def seconds_to_timedelta(self, seconds):
+        s = int(seconds)
+        ms = seconds - s
+        return timedelta(seconds=s,  milliseconds=ms)
 
     def print_pair(self, offset=0, count=1,
                    hide_left=None, hide_right=None, srt=False):
@@ -326,15 +331,11 @@ class SubPair:
             print("{}  |  {}".format(s[0]+(COLUMN_WIDTH-len(s[0]))*" ", s[1]))
 
     def align_subs(self, left_start, right_start, left_end, right_end):
-        l1 = self.subs[0].sub[left_start-1].start.seconds
-        l2 = self.subs[0].sub[left_end-1].start.seconds
+        self.first_start = self.subs[0].sub[left_start-1].start.total_seconds()
+        self.first_end = self.subs[0].sub[left_end-1].start.total_seconds()
 
-        r1 = self.subs[1].sub[right_start-1].start.seconds
-        r2 = self.subs[1].sub[right_end-1].start.seconds
-
-        offset = l1 - r1
-        coeff = (l2 - l1) / (r2 - r1)
-        self.set_params(offset, coeff)
+        self.second_start = self.subs[1].sub[right_start-1].start.total_seconds()
+        self.second_end = self.subs[1].sub[right_end-1].start.total_seconds()
 
     def save_subs(self):
         for sub in self.subs:
