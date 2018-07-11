@@ -68,7 +68,7 @@ class mockproxy():
         if not token:
             return None
 
-        imdbid = params[0]['imdbid']
+        imdbid = int(params[0]['imdbid'])
         lang = params[0]['sublanguageid']
         cnt = count[0]
         return {'status':'200 OK',
@@ -103,7 +103,7 @@ def test_search_sub(monkeypatch):
 
     os = Opensubtitles()
     os.login()
-    sub = os.search_sub(12, "rus")
+    sub = os.search_sub("https://www.imdb.com/title/tt1853728/?ref_=nv_sr_1", "rus")
     assert sub == mocksubs[1]
 
 def test_download_sub(monkeypatch):

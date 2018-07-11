@@ -10,6 +10,8 @@ import random
 import os
 import json
 import codecs
+import re
+
 
 
 COLUMN_WIDTH = 40
@@ -75,10 +77,11 @@ class Opensubtitles:
         Returns:
             sub (dict): subtitles info in Opensubtitles API format
         '''
+        imdb = re.search('\d+', imdbid)[0]
         try:
             result = self.proxy.SearchSubtitles(
                     self.token,
-                    [{'imdbid': str(imdbid), 'sublanguageid': lang}],
+                    [{'imdbid': str(imdb), 'sublanguageid': lang}],
                     [100])
         except xmlrpc.client.ProtocolError as err:
             print("Opensubtitles API protocol error: {0}".format(err))
