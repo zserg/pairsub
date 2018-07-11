@@ -173,14 +173,15 @@ class Subs:
         Return list of <str> from subtitles
         whose timedelta is between start and stop.
         Args:
-            start (timedelta): start time of subtitles
-            end (timedelta): end time of subtitles
+            start (float): start time of subtitles
+            end (float): end time of subtitles
         Returns:
             :obj:`list` of :obj:`Subtitles`
         '''
         subs = []
         for s in self.sub:
-            if s.start >= start and s.start <= end:
+            if (s.start >= self.seconds_to_timedelta(start) and
+                s.start <= self.seconds_to_timedelta(end)):
                 subs.append(s)
         return subs
 
@@ -198,6 +199,11 @@ class Subs:
             print("Subtitles parsing failed: {}".format(e))
             return []
 
+    def seconds_to_timedelta(self, seconds):
+        s = int(seconds)
+        ms = seconds - s
+        return timedelta(seconds=s,  milliseconds=ms)
+
 
 class SubPair:
     ''' Pair of subtitles'''
@@ -213,7 +219,7 @@ class SubPair:
         self.first_end = subs[0].sub[-1].start.total_seconds()
         self.second_start = 0
         self.second_end = subs[0].sub[-1].start.total_seconds()
-        self._append_to_cache_()
+        #self._append_to_cache_()
 
     def __repr__(self):
         return "{}, {}".format(self.subs[0].__repr__(),
@@ -254,11 +260,11 @@ class SubPair:
         coeff = first_len/second_len
         offset = first_len * start / 100
 
-        f_start = self.seconds_to_timedelta(self.first_start + offset)
-        f_end = self.seconds_to_timedelta(f_start + length)
+        f_start = self.first_start + offset
+        f_end = f_start + length
 
-        s_start = self.seconds_to_timedelta(self.second_start + offset/coeff)
-        s_end = self.seconds_to_timedelta(s_start + length/coeff)
+        s_start = self.second_start + offset/coeff
+        s_end = s_start + length/coeff
 
         par_subs = []
         for s, params in zip(self.subs, [(f_start, f_end), (s_start, s_end)]):
@@ -267,10 +273,6 @@ class SubPair:
 
         return par_subs
 
-    def seconds_to_timedelta(self, seconds):
-        s = int(seconds)
-        ms = seconds - s
-        return timedelta(seconds=s,  milliseconds=ms)
 
     def print_pair(self, offset=0, count=1,
                    hide_left=None, hide_right=None, srt=False):
@@ -298,7 +300,7 @@ class SubPair:
 
             print("{}  |  {}".format(s[0]+(COLUMN_WIDTH-len(s[0]))*" ", s[1]))
 
-    def print_pair_random(self, count=1):
+    def print_pair_random(self, count=30):
         offset = random.random() * 100
         self.print_pair(offset, count)
 
@@ -366,13 +368,13 @@ class SubPair:
             except ValueError:
                 pass
 
-    def set_params(self, offset, coeff):
-        self.offset = offset
-        self.coeff = coeff
-        if self._is_in_cache_():
-            self.cache_db[self._get_key_()]['offset'] = self.offset
-            self.cache_db[self._get_key_()]['coeff'] = self.coeff
-            self._cache_write_()
+    # def set_params(self, offset, coeff):
+    #     self.offset = offset
+    #     self.coeff = coeff
+    #     if self._is_in_cache_():
+    #         self.cache_db[self._get_key_()]['offset'] = self.offset
+    #         self.cache_db[self._get_key_()]['coeff'] = self.coeff
+    #         self._cache_write_()
 
     def _get_key_(self):
         return '_'.join([
@@ -421,5 +423,5 @@ def learn(pair, length):
 
 if __name__ == '__main__':
 
-    s = SubPair.download(1492032, "rus", "eng")
+    s = SubPair.download(5015956, "rus", "eng")
     learn(s, 20)

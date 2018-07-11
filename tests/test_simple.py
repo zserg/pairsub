@@ -130,7 +130,7 @@ class TestSubs:
         sub_data = mocksrt[0].encode()
         sub_info = mocksubsinfo[0]
         s = Subs(sub_data, sub_info)
-        start = srt.srt_timestamp_to_timedelta('00:00:10.500')
-        end = srt.srt_timestamp_to_timedelta('00:00:25.000')
+        start = 10.5
+        end = 25.0
         assert s.get_subs(start, end) == list(srt.parse(mocksrt[0]))[1:3]
 

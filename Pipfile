@@ -13,3 +13,4 @@ srt = "*"
 [dev-packages]
 pytest = "*"
 coverage = "*"
+ipython = "*"
