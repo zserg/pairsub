@@ -144,12 +144,13 @@ class Subs:
             sub_data (bytes): subtitles in SRT format
             encoding: (str): encoding
         '''
+        #import ipdb; ipdb.set_trace()
         if encoding:
             if data.startswith(codecs.BOM_UTF8):
                 enc = 'utf-8-sig'
             else:
                 enc = encoding
-            return data.decode(enc)
+            return data.decode(enc, errors='replace')
         else:
             return UnicodeDammit(data).unicode_markup
 
