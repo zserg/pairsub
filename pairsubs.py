@@ -420,12 +420,15 @@ def learn(pair, length):
     while True:
         offset = random.random() * 100
         pair.print_pair(offset, length, hide_right=True)
+        print()
         input("Press Enter...")
+        print()
         pair.print_pair(offset, length, hide_right=False)
         input("Press Enter...")
+        print()
 
 
 if __name__ == '__main__':
 
-    s = SubPair.download(5015956, "rus", "eng")
+    s = SubPair.download("5015956", "rus", "eng")
     learn(s, 20)
