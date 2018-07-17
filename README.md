@@ -5,7 +5,7 @@ This script allows you to dowload a pair of different language subtitles for a m
 import pairsubs
 
 # downloads a pair of subtitles by IMDB id
-s = pairsubs.SubPair.download(926084,"rus", "eng")
+s = pairsubs.SubPair.download("926084","rus", "eng")
 #Downloading rus ...
 #Downloading end ...
 
@@ -27,5 +27,8 @@ pairsubs.learn(s, 20)
 # Press Enter...
 
 ```
-
+You can also search subtittels by a whole URL from www.imdb.com
+```python
+s = pairsubs.SubPair.download("https://www.imdb.com/title/tt1480055/?ref_=ttep_ep1","rus", "eng")
+```
 
