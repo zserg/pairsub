@@ -251,6 +251,26 @@ class SubPair:
         osub.logout()
         return cls(subs)
 
+    @classmethod
+    def read(cls, file1, file2):
+        subs = []
+        for sub_file in file1, file2:
+            s = Subs.read()
+            sub = osub.search_sub(imdbid, lang)
+            if sub:
+                print("Downloading {} ...".format(lang))
+                sub_b = osub.download_sub(sub)
+                # import ipdb; ipdb.set_trace()
+                s = Subs(sub_b, sub)
+                subs.append(s)
+            else:
+                print("Subtitles #{} isn't found".format(imdbid))
+                osub.logout()
+                return None
+
+        osub.logout()
+        return cls(subs)
+
     def get_parallel_subs(self, start, length):
         '''
         Args:
@@ -347,31 +367,6 @@ class SubPair:
         for sub in self.subs:
             sub.save()
 
-    def _cache_init_(self):
-        '''
-        Init cache
-        '''
-        # verify that the application directory (~/.pairsubs) exists,
-        #   else create it
-        if not os.path.exists(APP_DIR):
-            os.makedirs(APP_DIR)
-
-        # If the cache db doesn't exist we create it.
-        # Otherwise we only open for reading
-        if not os.path.isfile(CACHE_DB):
-            with open(CACHE_DB, 'a'):
-                os.utime(CACHE_DB, None)
-
-        self.cache_db = {}
-
-        # We know from above that this file exists so we open it
-        #   for reading only.
-        with open(CACHE_DB, 'r') as f:
-            try:
-                self.cache_db = json.load(f)
-            except ValueError:
-                pass
-
     # def set_params(self, offset, coeff):
     #     self.offset = offset
     #     self.coeff = coeff
@@ -415,6 +410,37 @@ class SubPair:
         key = self._get_key_()
         return key in self.cache_db
 
+class SubDb():
+
+    def __init__(self):
+        self.data = self.load_data()
+
+    def load_data(self):
+        '''
+        Init cache
+        '''
+        # verify that the application directory (~/.pairsubs) exists,
+        #   else create it
+        #import ipdb; ipdb.set_trace()
+        if not os.path.exists(APP_DIR):
+            os.makedirs(APP_DIR)
+
+        # If the cache db doesn't exist we create it.
+        # Otherwise we only open for reading
+        if not os.path.isfile(CACHE_DB):
+            with open(CACHE_DB, 'a'):
+                os.utime(CACHE_DB, None)
+
+        data = []
+
+        # We know from above that this file exists so we open it
+        #   for reading only.
+        with open(CACHE_DB, 'r') as f:
+            try:
+                data = json.load(f)
+            except ValueError:
+                pass
+        return data
 
 def learn(pair, length):
     while True:

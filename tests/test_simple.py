@@ -1,11 +1,12 @@
 import pytest
+from unittest import mock
 
 import srt
 import xmlrpc.client
 import zlib
 import base64
 
-from pairsubs import Subs, SubPair, Opensubtitles
+from pairsubs import Subs, SubPair, Opensubtitles, SubDb
 
 mocksubs = [
 {'SubDownloadsCnt':10, 'MovieReleaseName':'Release_10', 'IDMovieImdb':'ID_10', 'SubLanguageID':'Lang_10'},
@@ -114,6 +115,10 @@ def test_download_sub(monkeypatch):
     sub = os.download_sub({'IDSubtitleFile':12})
     assert sub == mocksrt[0].encode()
 
+def test_read_sub(monkeypatch):
+    sp = SubPair.read('file1.srt', 'file2.srt')
+    assert len(sp.subs[0]) == 5
+
 
 
 class TestSubs:
@@ -133,4 +138,24 @@ class TestSubs:
         start = 10.5
         end = 25.0
         assert s.get_subs(start, end) == list(srt.parse(mocksrt[0]))[1:3]
+
+
+def mock_read():
+    return 'Hello, world'
+
+class TestsDb:
+
+    @mock.patch('pairsubs.os')
+    @mock.patch('pairsubs.open')
+    @mock.patch('pairsubs.json.load')
+    def test_init_file_not_exists(self, mock_json, mock_open, mock_os):
+        mock_json.return_value = []
+
+        db = SubDb()
+        assert isinstance(db.data, list)
+
+    # @mock.patch('pairsubs.os')
+    # @mock.patch('pairsubs.open')
+    # def test_download(self, mock_open, mock_os):
+    #     db = Db()
 
