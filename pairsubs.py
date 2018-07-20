@@ -1,4 +1,5 @@
 import xmlrpc.client
+import http.client
 import base64
 import zlib
 import srt
@@ -6,6 +7,7 @@ from bs4 import UnicodeDammit
 import textwrap
 import itertools
 from datetime import timedelta
+from urllib.parse import urlparse
 import random
 import os
 import json
@@ -22,6 +24,18 @@ APP_DIR = '{}/.pairsubs'.format(os.path.expanduser('~'))
 #: File in which to store details aboud downloaded subtitles
 CACHE_DB = '{}/cache.json'.format(APP_DIR)
 
+class ProxiedTransport(xmlrpc.client.Transport):
+
+    def set_proxy(self, host, port=None, headers=None):
+        self.proxy = host, port
+        self.proxy_headers = headers
+
+    def make_connection(self, host):
+        connection = http.client.HTTPConnection(*self.proxy)
+        connection.set_tunnel(host, headers=self.proxy_headers)
+        self._connection = host, connection
+        return connection
+
 
 class Opensubtitles:
     '''
@@ -32,9 +46,17 @@ class Opensubtitles:
 
     def __init__(self):
         '''Init xml-rpc proxy'''
-
-        self.proxy = xmlrpc.client.ServerProxy(
-                "https://api.opensubtitles.org/xml-rpc")
+        #import ipdb; ipdb.set_trace()
+        proxy_url = os.environ.get('http_proxy','')
+        if proxy_url:
+            parsed = urlparse(proxy_url).netloc
+            transport = ProxiedTransport()
+            transport.set_proxy(parsed)
+            self.proxy = xmlrpc.client.ServerProxy(
+                    "https://api.opensubtitles.org/xml-rpc", transport=transport)
+        else:
+            self.proxy = xmlrpc.client.ServerProxy(
+                    "https://api.opensubtitles.org/xml-rpc")
 
     def logout(self):
         ''' Logout from api.opensubtitles.org.'''
