@@ -239,13 +239,11 @@ class SubPair:
         Args:
             subs: list of <Subs> objects
         '''
-        self._cache_init_()
         self.subs = subs
         self.first_start = 0
         self.first_end = subs[0].sub[-1].start.total_seconds()
         self.second_start = 0
         self.second_end = subs[0].sub[-1].start.total_seconds()
-        #self._append_to_cache_()
 
     def __repr__(self):
         return "{}, {}".format(self.subs[0].__repr__(),
@@ -262,7 +260,6 @@ class SubPair:
             if sub:
                 print("Downloading {} ...".format(lang))
                 sub_b = osub.download_sub(sub)
-                # import ipdb; ipdb.set_trace()
                 s = Subs(sub_b, sub)
                 subs.append(s)
             else:
@@ -273,25 +270,25 @@ class SubPair:
         osub.logout()
         return cls(subs)
 
-    @classmethod
-    def read(cls, file1, file2):
-        subs = []
-        for sub_file in file1, file2:
-            s = Subs.read()
-            sub = osub.search_sub(imdbid, lang)
-            if sub:
-                print("Downloading {} ...".format(lang))
-                sub_b = osub.download_sub(sub)
-                # import ipdb; ipdb.set_trace()
-                s = Subs(sub_b, sub)
-                subs.append(s)
-            else:
-                print("Subtitles #{} isn't found".format(imdbid))
-                osub.logout()
-                return None
+    # @classmethod
+    # def read(cls, file1, file2):
+    #     subs = []
+    #     for sub_file in file1, file2:
+    #         s = Subs.read()
+    #         sub = osub.search_sub(imdbid, lang)
+    #         if sub:
+    #             print("Downloading {} ...".format(lang))
+    #             sub_b = osub.download_sub(sub)
+    #             # import ipdb; ipdb.set_trace()
+    #             s = Subs(sub_b, sub)
+    #             subs.append(s)
+    #         else:
+    #             print("Subtitles #{} isn't found".format(imdbid))
+    #             osub.logout()
+    #             return None
 
-        osub.logout()
-        return cls(subs)
+    #     osub.logout()
+    #     return cls(subs)
 
     def get_parallel_subs(self, start, length):
         '''
@@ -389,15 +386,7 @@ class SubPair:
         for sub in self.subs:
             sub.save()
 
-    # def set_params(self, offset, coeff):
-    #     self.offset = offset
-    #     self.coeff = coeff
-    #     if self._is_in_cache_():
-    #         self.cache_db[self._get_key_()]['offset'] = self.offset
-    #         self.cache_db[self._get_key_()]['coeff'] = self.coeff
-    #         self._cache_write_()
-
-    def _get_key_(self):
+    def get_id(self):
         return '_'.join([
                 self.subs[0].sub_info['IDSubtitleFile'],
                 self.subs[1].sub_info['IDSubtitleFile']
@@ -411,26 +400,16 @@ class SubPair:
                     self.subs[1].sub_info
                     ]}
 
-    def _cache_write_(self):
-        with open(CACHE_DB, 'w') as f:
-            f.write(json.dumps(self.cache_db))
+    def get_data(self):
+        return {'first_start': self.first_start,
+                'first_end': self.first_end,
+                'second_start': self.second_start,
+                'second_end': self.second_end,
+                'subs': [
+                    self.subs[0].sub_info,
+                    self.subs[1].sub_info
+                    ]}
 
-    def _append_to_cache_(self):
-        # load offset and coeff from cache if exists
-        if self._is_in_cache_():
-            key = self._get_key_()
-            self.offset = self.cache_db[key]['offset']
-            self.coeff = self.cache_db[key]['coeff']
-        # store info in cache if doesn't exists
-        if not self._is_in_cache_():
-            key = self._get_key_()
-            value = self._get_value_()
-            self.cache_db[key] = value
-            self._cache_write_()
-
-    def _is_in_cache_(self):
-        key = self._get_key_()
-        return key in self.cache_db
 
 class SubDb():
 
@@ -453,7 +432,7 @@ class SubDb():
             with open(CACHE_DB, 'a'):
                 os.utime(CACHE_DB, None)
 
-        data = []
+        data = {}
 
         # We know from above that this file exists so we open it
         #   for reading only.
@@ -463,6 +442,27 @@ class SubDb():
             except ValueError:
                 pass
         return data
+
+    def is_in_db(self, sub_pair):
+        sub_id = sub_pair.get_id()
+        return sub_id in self.data
+
+    def add_subpair(self, sub_pair):
+        if not self.is_in_db(sub_pair):
+            sub_id = sub_pair.get_id()
+            sub_data = sub_pair.get_data()
+            self.data[sub_id] = sub_data
+
+    def download(self, imdbid, lang1, lang2):
+        sub_pair = SubPair.download(imdbid, lang1, lang2)
+        if sub_pair:
+            self.add_subpair(sub_pair)
+            self.write_db()
+            return sub_pair.get_id()
+
+    def write_db(self):
+        with open(CACHE_DB, 'w') as f:
+            f.write(json.dumps(self.data))
 
 def learn(pair, length):
     while True:

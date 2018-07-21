@@ -1,10 +1,11 @@
 import pytest
-from unittest import mock
+from unittest.mock import Mock
 
 import srt
 import xmlrpc.client
 import zlib
 import base64
+from datetime import timedelta
 
 from pairsubs import Subs, SubPair, Opensubtitles, SubDb
 
@@ -17,6 +18,7 @@ mocksubsinfo = [
         {'MovieName':'Name_10', 'SubEncoding':'utf-8', 'SubFileName':'File_10', 'SubLanguageID': 'Lang_10', 'IDMovieImdb': 'imdb_10', 'IDSubtitleFile': 10},
         {'MovieName':'Name_20', 'SubEncoding':'utf-8', 'SubFileName':'File_20', 'SubLanguageID': 'Lang_20', 'IDMovieImdb': 'imdb_20', 'IDSubtitleFile': 20},
 ]
+
 
 mocksrt = [
 """1
@@ -115,9 +117,9 @@ def test_download_sub(monkeypatch):
     sub = os.download_sub({'IDSubtitleFile':12})
     assert sub == mocksrt[0].encode()
 
-def test_read_sub(monkeypatch):
-    sp = SubPair.read('file1.srt', 'file2.srt')
-    assert len(sp.subs[0]) == 5
+# def test_read_sub(monkeypatch):
+#     sp = SubPair.read('file1.srt', 'file2.srt')
+#     assert len(sp.subs[0]) == 5
 
 
 
@@ -140,22 +142,65 @@ class TestSubs:
         assert s.get_subs(start, end) == list(srt.parse(mocksrt[0]))[1:3]
 
 
-def mock_read():
-    return 'Hello, world'
+
+
+def gen_sub_info(sub_id, idx):
+    return {'MovieName':'Name_{}'.format(sub_id),
+            'SubEncoding':'utf-8',
+            'SubFileName':'File_{}_{}'.format(sub_id,idx),
+            'SubLanguageID': 'Lang_{}'.format(sub_id),
+            'IDMovieImdb': 'imdb_{}'.format(sub_id),
+            'IDSubtitleFile': 'fileid_{}_{}'.format(sub_id, idx)}
+
+def gen_sub_data(sub_id, idx, length, single_dur):
+    subs = ''
+    for i in range(1,length+1):
+        s = srt.Subtitle(
+                index = i,
+                start = timedelta(seconds=i*single_dur),
+                end = timedelta(seconds=(i+1)*single_dur/2),
+                content = 'ID={}, IDX={}, Sentence #{}'.format(sub_id, idx, i))
+        subs += s.to_srt()
+    return subs.encode('utf-8')
+
+def gen_subpair(sub_id):
+    subs = []
+    for i in range(2):
+        data = gen_sub_data(sub_id, i, 5, 10)
+        info = gen_sub_info(sub_id, i)
+        s = Subs(data, info)
+        subs.append(s)
+    return SubPair(subs)
+
 
 class TestsDb:
 
-    @mock.patch('pairsubs.os')
-    @mock.patch('pairsubs.open')
-    @mock.patch('pairsubs.json.load')
-    def test_init_file_not_exists(self, mock_json, mock_open, mock_os):
-        mock_json.return_value = []
+    @pytest.fixture
+    def gen_db(self):
+        SubDb.load_data = Mock()
+        SubDb.write_db = Mock()
 
+        dbdata = {}
+        for i in range(3):
+            s = gen_subpair(i)
+            sub_id = s.get_id()
+            sub_data = s.get_data()
+            dbdata[sub_id] = sub_data
         db = SubDb()
-        assert isinstance(db.data, list)
+        db.data = dbdata
+        return db
 
-    # @mock.patch('pairsubs.os')
-    # @mock.patch('pairsubs.open')
-    # def test_download(self, mock_open, mock_os):
-    #     db = Db()
+
+    def test_download(self, gen_db):
+        imdb = 'some_imdb_url_012345_'
+        SubPair.download = Mock(return_value=gen_subpair(imdb))
+        gen_db.download('some_imdb_url_012345_', 'rus', 'eng')
+        assert len(gen_db.data) == 4
+
+    def test_download_not_found(self, gen_db):
+        SubPair.download = Mock(return_value=None)
+        gen_db.download('some_imdb_url_012345_', 'rus', 'eng')
+        assert len(gen_db.data) == 3
+
+
 
