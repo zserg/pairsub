@@ -21,6 +21,8 @@ COLUMN_WIDTH = 40
 #: Directory in which to store PaiSubs cache.
 APP_DIR = '{}/.pairsubs'.format(os.path.expanduser('~'))
 
+FILES_DIR = os.path.join(APP_DIR, 'files')
+
 #: File in which to store details aboud downloaded subtitles
 CACHE_DB = '{}/cache.json'.format(APP_DIR)
 
@@ -134,7 +136,7 @@ class Subs:
     Base class for subtitles
     '''
 
-    def __init__(self, sub_data, sub_info):
+    def __init__(self, sub_data, sub_info, decode=True):
         '''
         Args:
             sub_data (bytes): subtitles in SRT format
@@ -149,7 +151,11 @@ class Subs:
         self.sub_info['IDSubtitleFile'] = sub_info.get('IDSubtitleFile', None)
 
         # Decode bytes to Unicode string
-        data_decoded = self.sub_decode(sub_data, self.sub_info['SubEncoding'])
+        if decode:
+            data_decoded = self.sub_decode(sub_data, self.sub_info['SubEncoding'])
+        else:
+            data_decoded = sub_data
+
 
         # Parse bytes into a list of Subtitles objects
         self.sub = self._parse_subtitles_(data_decoded)
@@ -179,19 +185,16 @@ class Subs:
     def save(self, name=None):
         data = srt.compose(self.sub)
         file_name = name if name else self.sub_info['SubFileName']
-        with open(file_name, 'wb') as f:
+        with open(os.path.join(FILES_DIR,file_name), 'w') as f:
             f.write(data)
 
-    # @classmethod
-    # def read(cls, name, encoding=None,
-    #          lang=None, movie_name=None, imdbid=None):
-
-    #     subs_args = {'encoding': encoding, 'lang': lang,
-    #                  'movie_name': movie_name, 'imdbid': imdbid}
-    #     with open(name, 'rb') as f:
-    #         data = f.read()
-
-    #     return cls(data, **subs_args)
+    @classmethod
+    def read(cls, sub_info):
+        import ipdb; ipdb.set_trace()
+        name = os.path.join(FILES_DIR,sub_info['SubFileName'])
+        with open(name, 'r') as f:
+            data = f.read()
+        return cls(data, sub_info, decode=False)
 
 
     def get_subs(self, start, end):
@@ -210,12 +213,6 @@ class Subs:
                 s.start <= self.seconds_to_timedelta(end)):
                 subs.append(s)
         return subs
-
-    # def set_encoding(self, encoding):
-    #     self.sub_info['SubEncoding'] = encoding
-    #     data = self.sub_b.decode(self.sub_info['SubEncoding'])
-    #     self.sub = self._parse_subtitles_(data)
-    #     self._fix_subtitles_()
 
     def _parse_subtitles_(self, data):
         try:
@@ -260,6 +257,7 @@ class SubPair:
             if sub:
                 print("Downloading {} ...".format(lang))
                 sub_b = osub.download_sub(sub)
+                #import ipdb; ipdb.set_trace()
                 s = Subs(sub_b, sub)
                 subs.append(s)
             else:
@@ -270,25 +268,14 @@ class SubPair:
         osub.logout()
         return cls(subs)
 
-    # @classmethod
-    # def read(cls, file1, file2):
-    #     subs = []
-    #     for sub_file in file1, file2:
-    #         s = Subs.read()
-    #         sub = osub.search_sub(imdbid, lang)
-    #         if sub:
-    #             print("Downloading {} ...".format(lang))
-    #             sub_b = osub.download_sub(sub)
-    #             # import ipdb; ipdb.set_trace()
-    #             s = Subs(sub_b, sub)
-    #             subs.append(s)
-    #         else:
-    #             print("Subtitles #{} isn't found".format(imdbid))
-    #             osub.logout()
-    #             return None
-
-    #     osub.logout()
-    #     return cls(subs)
+    @classmethod
+    def read(cls, info):
+        subs = []
+        import ipdb; ipdb.set_trace()
+        for sub in info['subs']:
+            s = Subs.read(sub)
+            subs.append(s)
+        return cls(subs)
 
     def get_parallel_subs(self, start, length):
         '''
@@ -410,11 +397,22 @@ class SubPair:
                     self.subs[1].sub_info
                     ]}
 
+    def learn(self, length):
+        while True:
+            offset = random.random() * 100
+            self.print_pair(offset, length, hide_right=True)
+            print()
+            input("Press Enter...")
+            print()
+            self.print_pair(offset, length, hide_right=False)
+            input("Press Enter...")
+            print()
 
 class SubDb():
 
     def __init__(self):
         self.data = self.load_data()
+        self.cache = {}
 
     def load_data(self):
         '''
@@ -425,6 +423,9 @@ class SubDb():
         #import ipdb; ipdb.set_trace()
         if not os.path.exists(APP_DIR):
             os.makedirs(APP_DIR)
+
+        if not os.path.exists(FILES_DIR):
+            os.makedirs(FILES_DIR)
 
         # If the cache db doesn't exist we create it.
         # Otherwise we only open for reading
@@ -458,22 +459,39 @@ class SubDb():
         if sub_pair:
             self.add_subpair(sub_pair)
             self.write_db()
+            self.add_to_cache(sub_pair)
+            sub_pair.save_subs()
             return sub_pair.get_id()
 
     def write_db(self):
         with open(CACHE_DB, 'w') as f:
             f.write(json.dumps(self.data))
 
-def learn(pair, length):
-    while True:
-        offset = random.random() * 100
-        pair.print_pair(offset, length, hide_right=True)
-        print()
-        input("Press Enter...")
-        print()
-        pair.print_pair(offset, length, hide_right=False)
-        input("Press Enter...")
-        print()
+    def add_to_cache(self, sub_pair):
+        sub_id = sub_pair.get_id()
+        if not sub_id in self.cache:
+            self.cache[sub_id] = sub_pair
+
+    def read_subpair(self, sub_id):
+        if not sub_id in self.cache:
+            sub_info = self.data[sub_id]
+            sub_pair = SubPair.read(sub_info)
+            self.add_to_cache(sub_pair)
+
+    def print_list(self):
+        for sp in self.data.items():
+            print('{}: {} [{}-{}]'.format(
+                sp[0], # sub_id
+                sp[1]['subs'][0]['MovieName'],
+                sp[1]['subs'][0]['SubLanguageID'],
+                sp[1]['subs'][1]['SubLanguageID']))
+
+
+    def learn(self, sub_id=None):
+        if sub_id:
+            if not sub_id in self.cache:
+                self.read_subpair(sub_id)
+                self.cache[sub_id].learn(20)
 
 
 if __name__ == '__main__':
