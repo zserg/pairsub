@@ -190,7 +190,7 @@ class Subs:
 
     @classmethod
     def read(cls, sub_info):
-        import ipdb; ipdb.set_trace()
+        #import ipdb; ipdb.set_trace()
         name = os.path.join(FILES_DIR,sub_info['SubFileName'])
         with open(name, 'r') as f:
             data = f.read()
@@ -271,7 +271,7 @@ class SubPair:
     @classmethod
     def read(cls, info):
         subs = []
-        import ipdb; ipdb.set_trace()
+        #import ipdb; ipdb.set_trace()
         for sub in info['subs']:
             s = Subs.read(sub)
             subs.append(s)
