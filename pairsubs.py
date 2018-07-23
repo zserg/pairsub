@@ -402,10 +402,14 @@ class SubPair:
             offset = random.random() * 100
             self.print_pair(offset, length, hide_right=True)
             print()
-            input("Press Enter...")
+            data = input("Press 'Enter' (or 'q' + 'Enter' to quit)")
+            if data:
+                break
             print()
             self.print_pair(offset, length, hide_right=False)
-            input("Press Enter...")
+            data = input("Press 'Enter' (or 'q' + 'Enter' to quit)")
+            if data:
+                break
             print()
 
 class SubDb():
@@ -488,10 +492,12 @@ class SubDb():
 
 
     def learn(self, sub_id=None):
+        #import ipdb; ipdb.set_trace()
         if sub_id:
             if not sub_id in self.cache:
                 self.read_subpair(sub_id)
-                self.cache[sub_id].learn(20)
+            self.cache[sub_id].learn(20)
+
 
 
 if __name__ == '__main__':
