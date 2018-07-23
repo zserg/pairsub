@@ -334,7 +334,7 @@ class SubPair:
         offset = random.random() * 100
         self.print_pair(offset, count)
 
-    def print_start_and_end(self, count=4):
+    def print_for_align(self, count=4):
         data = []
         for sub in self.subs:
             lines = srt.compose(sub.sub[:count])
@@ -411,6 +411,7 @@ class SubPair:
             if data:
                 break
             print()
+
 
 class SubDb():
 
@@ -497,6 +498,13 @@ class SubDb():
             if not sub_id in self.cache:
                 self.read_subpair(sub_id)
             self.cache[sub_id].learn(20)
+        return self.cache[sub_id]
+
+    # def print_for_align(self, sub_id, num=4):
+    #     self.cache[sub_id].print_for_align(num)
+
+    # def align_subs(self, sub_id, num=4):
+    #     self.cache[sub_id].print_for_align(num)
 
 
 
