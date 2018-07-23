@@ -243,7 +243,7 @@ class SubPair:
         self.second_end = subs[0].sub[-1].start.total_seconds()
 
     def __repr__(self):
-        return "{}, {}".format(self.subs[0].__repr__(),
+        return "[{}, {}]".format(self.subs[0].__repr__(),
                                self.subs[1].__repr__())
 
     @classmethod
@@ -259,7 +259,11 @@ class SubPair:
                 sub_b = osub.download_sub(sub)
                 #import ipdb; ipdb.set_trace()
                 s = Subs(sub_b, sub)
-                subs.append(s)
+                if s.sub:
+                    subs.append(s)
+                else:
+                    print("Failed the subtitles parsing")
+                    return None
             else:
                 print("Subtitles #{} isn't found".format(imdbid))
                 osub.logout()
@@ -461,6 +465,7 @@ class SubDb():
 
     def download(self, imdbid, lang1, lang2):
         sub_pair = SubPair.download(imdbid, lang1, lang2)
+        #import ipdb; ipdb.set_trace()
         if sub_pair:
             self.add_subpair(sub_pair)
             self.add_to_cache(sub_pair)
@@ -475,7 +480,7 @@ class SubDb():
                 'second_start', 'second_end')
         for sub_id in self.cache:
             for k in keys:
-                self.data[sub_id][k] = self.cache[sub_id][k]
+                self.data[sub_id][k] = getattr(self.cache[sub_id], k)
 
         with open(CACHE_DB, 'w') as f:
             f.write(json.dumps(self.data))
@@ -507,13 +512,6 @@ class SubDb():
                 self.read_subpair(sub_id)
             self.cache[sub_id].learn(20)
         return self.cache[sub_id]
-
-    # def print_for_align(self, sub_id, num=4):
-    #     self.cache[sub_id].print_for_align(num)
-
-    # def align_subs(self, sub_id, num=4):
-    #     self.cache[sub_id].print_for_align(num)
-
 
 
 if __name__ == '__main__':
