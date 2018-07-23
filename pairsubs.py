@@ -407,7 +407,7 @@ class SubPair:
                 break
             print()
             self.print_pair(offset, length, hide_right=False)
-            data = input("Press 'Enter' (or 'q' + 'Enter' to quit)")
+            data = input("Press 'Enter' (or 'q' + 'Enter' to quit) ")
             if data:
                 break
             print()
@@ -463,12 +463,20 @@ class SubDb():
         sub_pair = SubPair.download(imdbid, lang1, lang2)
         if sub_pair:
             self.add_subpair(sub_pair)
-            self.write_db()
             self.add_to_cache(sub_pair)
+            self.write_db()
             sub_pair.save_subs()
             return sub_pair.get_id()
 
     def write_db(self):
+
+        # update db data with the alignment data from cache
+        keys = ('first_start', 'first_end',
+                'second_start', 'second_end')
+        for sub_id in self.cache:
+            for k in keys:
+                self.data[sub_id][k] = self.cache[sub_id][k]
+
         with open(CACHE_DB, 'w') as f:
             f.write(json.dumps(self.data))
 
