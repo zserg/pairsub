@@ -61,7 +61,7 @@ class mockproxy():
     '''
     xmlrpc.client.ServerProxy mock class
     '''
-    def __init__(self, path):
+    def __init__(self, path, transport=None):
         pass
 
     def LogIn(self, login, password, lang, agent):

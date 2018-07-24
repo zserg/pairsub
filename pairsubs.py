@@ -497,7 +497,6 @@ class SubDb():
                 sp[1]['subs'][1]['SubLanguageID']))
 
     def learn(self, sub_id=None):
-        #import ipdb; ipdb.set_trace()
         if sub_id:
             if not sub_id in self.cache:
                 self.read_subpair(sub_id)
@@ -521,6 +520,18 @@ class SubDb():
         except KeyError:
             pass
 
+    def print_for_align(self, sub_id, count=4):
+        if not sub_id in self.cache:
+            self.read_subpair(sub_id)
+        self.cache[sub_id].print_for_align(count)
+        return self.cache[sub_id]
+
+    def align_subs(self, sub_id, left_start, right_start, left_end, right_end):
+        if not sub_id in self.cache:
+            self.read_subpair(sub_id)
+        self.cache[sub_id].align_subs(left_start, right_start, left_end, right_end)
+        self.write_db()
+        return self.cache[sub_id]
 
 if __name__ == '__main__':
 
