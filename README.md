@@ -42,6 +42,11 @@ Press 'Enter' (or 'q' + 'Enter' to quit)
 
 Press 'Enter' (or 'q' + 'Enter' to quit)
 ```
-
-
+### Known issue with opensubtitles.org access
+Sometimes Opensubtitles API returns error:
+```python
+>>> sub = db.download("https://www.imdb.com/title/tt1480055/?ref_=ttep_ep1","rus", "eng")
+Opensubtitles API protocol error: <ProtocolError for api.opensubtitles.org/xml-rpc: 429 Too Many Requests>
+```
+It may be because of using TemporaryUserAgent in the programm. Just repeat the request or register own user agent for opensubtitles.org API (http://trac.opensubtitles.org/projects/opensubtitles/wiki/DevReadFirst)
 
