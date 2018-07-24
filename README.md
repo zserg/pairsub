@@ -14,7 +14,7 @@ sub = db.download("https://www.imdb.com/title/tt1480055/?ref_=ttep_ep1","rus", "
 #Downloading rus ...
 #Downloading end ...
 
-# start learning,  20 - duration of a fragment (seconds)
+# start learning
 db.learn(sub)
 
 # Куда он ?!                                |
