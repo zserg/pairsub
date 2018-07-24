@@ -17,23 +17,23 @@ sub = db.download("https://www.imdb.com/title/tt1480055/?ref_=ttep_ep1","rus", "
 # start learning
 db.learn(sub)
 
-Куда он ?!                                |
-- Церемония закончена.                    |
-- Но он ничего не сказал.                 |
-- Она ему понравилась?                    |
-- Поверьте мне, ваша Милость,             |
-если бы она ему не нравилась, мы бы       |
-знали.                                    |
-
-Press 'Enter' (or 'q' + 'Enter' to quit)
-
-Куда он ?!                                |  Where is he going?!
-- Церемония закончена.                    |  - The ceremony is over.
-- Но он ничего не сказал.                 |  - But he didn't say anything.
-- Она ему понравилась?                    |  - Did he like her?
-- Поверьте мне, ваша Милость,             |  - Trust me, your Grace,
-если бы она ему не нравилась, мы бы       |  if he didn't like her,
-знали.                                    |  we'd know.
-Press 'Enter' (or 'q' + 'Enter' to quit)
+# Куда он ?!                                |
+# - Церемония закончена.                    |
+# - Но он ничего не сказал.                 |
+# - Она ему понравилась?                    |
+# - Поверьте мне, ваша Милость,             |
+# если бы она ему не нравилась, мы бы       |
+# знали.                                    |
+# 
+# Press 'Enter' (or 'q' + 'Enter' to quit)
+# 
+# Куда он ?!                                |  Where is he going?!
+# - Церемония закончена.                    |  - The ceremony is over.
+# - Но он ничего не сказал.                 |  - But he didn't say anything.
+# - Она ему понравилась?                    |  - Did he like her?
+# - Поверьте мне, ваша Милость,             |  - Trust me, your Grace,
+# если бы она ему не нравилась, мы бы       |  if he didn't like her,
+# знали.                                    |  we'd know.
+# Press 'Enter' (or 'q' + 'Enter' to quit)
 `
 
