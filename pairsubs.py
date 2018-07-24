@@ -383,14 +383,6 @@ class SubPair:
                 self.subs[1].sub_info['IDSubtitleFile']
                 ])
 
-    def _get_value_(self):
-        return {'offset': self.offset,
-                'coeff': self.coeff,
-                'subs': [
-                    self.subs[0].sub_info,
-                    self.subs[1].sub_info
-                    ]}
-
     def get_data(self):
         return {'first_start': self.first_start,
                 'first_end': self.first_end,
@@ -504,7 +496,6 @@ class SubDb():
                 sp[1]['subs'][0]['SubLanguageID'],
                 sp[1]['subs'][1]['SubLanguageID']))
 
-
     def learn(self, sub_id=None):
         #import ipdb; ipdb.set_trace()
         if sub_id:
@@ -512,6 +503,23 @@ class SubDb():
                 self.read_subpair(sub_id)
             self.cache[sub_id].learn(20)
         return self.cache[sub_id]
+
+    def delete(self, sub_id):
+
+        #remove subtitles files
+        for s in self.data[sub_id]['subs']:
+            filename = os.path.join(FILES_DIR, s['SubFileName'])
+            try:
+                os.remove(filename)
+            except FileNotFoundError:
+                print('File {} is not found'.format(filename))
+
+        del self.data[sub_id]
+
+        try:
+            del self.cache[sub_id]
+        except KeyError:
+            pass
 
 
 if __name__ == '__main__':
