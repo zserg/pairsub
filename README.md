@@ -1,34 +1,39 @@
-# pairsub
-This script allows you to dowload a pair of different language subtitles for a movie from [opensubtitles.org](www.opensubtitles.org). You can take a parallel text and practice you translation skill that will help you to learn a foreign language
+# pairsubs
+This script allows you to dowload a pair of different language subtitles for a movie from [opensubtitles.org](www.opensubtitles.org). You can take a parallel text and practice you translation skill that will help you to learn a foreign language.
+All subtitles you've downloaded are stored on the disk and can be used later in the learning process.
 # How to use
 ```python
 import pairsubs
 
-# downloads a pair of subtitles by IMDB id
-s = pairsubs.SubPair.download("926084","rus", "eng")
+# initialise subtitles database
+db = pairsubs.SubDb()
+
+# Take a whole URL of some movie from www.imdb.com and
+# download subtitles from opensubtitles.org
+sub = db.download("https://www.imdb.com/title/tt1480055/?ref_=ttep_ep1","rus", "eng")
 #Downloading rus ...
 #Downloading end ...
 
 # start learning,  20 - duration of a fragment (seconds)
-pairsubs.learn(s, 20)
+db.learn(sub)
 
-# Вы до сих пор...                          |             
-# Лейтенант Дэн.                            |                 
-# Посмотри на меня.                         |             
-# Что мне теперь делать?                    |                            
-# Что мне теперь делать?                    |                            
-# Press Enter...
+# Куда он ?!                                |
+# - Церемония закончена.                    |
+# - Но он ничего не сказал.                 |
+# - Она ему понравилась?                    |
+# - Поверьте мне, ваша Милость,             |
+# если бы она ему не нравилась, мы бы       |
+# знали.                                    |
 
-# Вы до сих пор...                          |  Y-You still
-# Лейтенант Дэн.                            |  Lieutenant Dan.
-# Посмотри на меня.                         |  Look at me.
-# Что мне теперь делать?                    |  What am I going to do now?
-# Что мне теперь делать?                    |  What am I going to do now?
-# Press Enter...
+Press 'Enter' (or 'q' + 'Enter' to quit)
 
-```
-You can also search subtittels by a whole URL from www.imdb.com
-```python
-s = pairsubs.SubPair.download("https://www.imdb.com/title/tt1480055/?ref_=ttep_ep1","rus", "eng")
-```
+# Куда он ?!                                |  Where is he going?!
+# - Церемония закончена.                    |  - The ceremony is over.
+# - Но он ничего не сказал.                 |  - But he didn't say anything.
+# - Она ему понравилась?                    |  - Did he like her?
+# - Поверьте мне, ваша Милость,             |  - Trust me, your Grace,
+# если бы она ему не нравилась, мы бы       |  if he didn't like her,
+# знали.                                    |  we'd know.
+Press 'Enter' (or 'q' + 'Enter' to quit)
+`
 
