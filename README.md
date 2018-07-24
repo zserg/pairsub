@@ -6,9 +6,15 @@ All subtitles you've downloaded are stored on the disk and can be used later in 
 >>> import pairsubs
 >>> db = pairsubs.SubDb()
 >>> sub = db.download("https://www.imdb.com/title/tt1480055/?ref_=ttep_ep1","rus", "eng")
+```
+```
 Downloading rus ...
 Downloading end ...
+```
+```python
 >>> db.learn(sub)
+```
+```
 А вы серьёзно подготовились.              |
 Мистер Локвуд очень серьёзно              |
 относиться к своей гуманитарной миссии.   |
