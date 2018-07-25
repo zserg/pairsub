@@ -497,10 +497,13 @@ class SubDb():
                 sp[1]['subs'][1]['SubLanguageID']))
 
     def learn(self, sub_id=None):
-        if sub_id:
-            if not sub_id in self.cache:
-                self.read_subpair(sub_id)
-            self.cache[sub_id].learn(20)
+        if not sub_id: # get random sub
+            sub_id = random.choice(list(self.data.keys()))
+
+        if not sub_id in self.cache:
+            self.read_subpair(sub_id)
+        self.cache[sub_id].learn(20)
+
         return self.cache[sub_id]
 
     def delete(self, sub_id):
