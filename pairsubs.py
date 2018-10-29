@@ -48,8 +48,8 @@ class Opensubtitles:
 
     def __init__(self):
         '''Init xml-rpc proxy'''
-        #import ipdb; ipdb.set_trace()
-        proxy_url = os.environ.get('http_proxy','')
+        # import ipdb; ipdb.set_trace()
+        proxy_url = os.environ.get('http_proxy', '')
         if proxy_url:
             parsed = urlparse(proxy_url).netloc
             transport = ProxiedTransport()
@@ -156,7 +156,6 @@ class Subs:
         else:
             data_decoded = sub_data
 
-
         # Parse bytes into a list of Subtitles objects
         self.sub = self._parse_subtitles_(data_decoded)
 
@@ -172,7 +171,7 @@ class Subs:
             sub_data (bytes): subtitles in SRT format
             encoding: (str): encoding
         '''
-        #import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         if encoding:
             if data.startswith(codecs.BOM_UTF8):
                 enc = 'utf-8-sig'
@@ -185,17 +184,16 @@ class Subs:
     def save(self, name=None):
         data = srt.compose(self.sub)
         file_name = name if name else self.sub_info['SubFileName']
-        with open(os.path.join(FILES_DIR,file_name), 'w') as f:
+        with open(os.path.join(FILES_DIR, file_name), 'w') as f:
             f.write(data)
 
     @classmethod
     def read(cls, sub_info):
-        #import ipdb; ipdb.set_trace()
-        name = os.path.join(FILES_DIR,sub_info['SubFileName'])
+        # import ipdb; ipdb.set_trace()
+        name = os.path.join(FILES_DIR, sub_info['SubFileName'])
         with open(name, 'r') as f:
             data = f.read()
         return cls(data, sub_info, decode=False)
-
 
     def get_subs(self, start, end):
         '''
@@ -244,7 +242,7 @@ class SubPair:
 
     def __repr__(self):
         return "[{}, {}]".format(self.subs[0].__repr__(),
-                               self.subs[1].__repr__())
+                                 self.subs[1].__repr__())
 
     @classmethod
     def download(cls, imdbid, lang1, lang2, enc1=None, enc2=None):
@@ -257,7 +255,7 @@ class SubPair:
             if sub:
                 print("Downloading {} ...".format(lang))
                 sub_b = osub.download_sub(sub)
-                #import ipdb; ipdb.set_trace()
+                # import ipdb; ipdb.set_trace()
                 s = Subs(sub_b, sub)
                 if s.sub:
                     subs.append(s)
@@ -275,7 +273,7 @@ class SubPair:
     @classmethod
     def read(cls, info):
         subs = []
-        #import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         for sub in info['subs']:
             s = Subs.read(sub)
             subs.append(s)
@@ -306,7 +304,6 @@ class SubPair:
             par_subs.append(subs)
 
         return par_subs
-
 
     def print_pair(self, offset=0, count=1,
                    hide_left=None, hide_right=None, srt=False):
@@ -421,7 +418,7 @@ class SubDb():
         '''
         # verify that the application directory (~/.pairsubs) exists,
         #   else create it
-        #import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         if not os.path.exists(APP_DIR):
             os.makedirs(APP_DIR)
 
@@ -457,7 +454,7 @@ class SubDb():
 
     def download(self, imdbid, lang1, lang2):
         sub_pair = SubPair.download(imdbid, lang1, lang2)
-        #import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         if sub_pair:
             self.add_subpair(sub_pair)
             self.add_to_cache(sub_pair)
@@ -479,11 +476,11 @@ class SubDb():
 
     def add_to_cache(self, sub_pair):
         sub_id = sub_pair.get_id()
-        if not sub_id in self.cache:
+        if sub_id not in self.cache:
             self.cache[sub_id] = sub_pair
 
     def read_subpair(self, sub_id):
-        if not sub_id in self.cache:
+        if sub_id not in self.cache:
             sub_info = self.data[sub_id]
             sub_pair = SubPair.read(sub_info)
             self.add_to_cache(sub_pair)
@@ -491,16 +488,16 @@ class SubDb():
     def print_list(self):
         for sp in self.data.items():
             print('{}: {} [{}-{}]'.format(
-                sp[0], # sub_id
+                sp[0],  # sub_id
                 sp[1]['subs'][0]['MovieName'],
                 sp[1]['subs'][0]['SubLanguageID'],
                 sp[1]['subs'][1]['SubLanguageID']))
 
     def learn(self, sub_id=None):
-        if not sub_id: # get random sub
+        if not sub_id:  # get random sub
             sub_id = random.choice(list(self.data.keys()))
 
-        if not sub_id in self.cache:
+        if sub_id not in self.cache:
             self.read_subpair(sub_id)
         self.cache[sub_id].learn(20)
 
@@ -508,7 +505,7 @@ class SubDb():
 
     def delete(self, sub_id):
 
-        #remove subtitles files
+        # remove subtitles files
         for s in self.data[sub_id]['subs']:
             filename = os.path.join(FILES_DIR, s['SubFileName'])
             try:
@@ -524,17 +521,18 @@ class SubDb():
             pass
 
     def print_for_align(self, sub_id, count=4):
-        if not sub_id in self.cache:
+        if sub_id not in self.cache:
             self.read_subpair(sub_id)
         self.cache[sub_id].print_for_align(count)
         return self.cache[sub_id]
 
     def align_subs(self, sub_id, left_start, right_start, left_end, right_end):
-        if not sub_id in self.cache:
+        if sub_id not in self.cache:
             self.read_subpair(sub_id)
         self.cache[sub_id].align_subs(left_start, right_start, left_end, right_end)
         self.write_db()
         return self.cache[sub_id]
+
 
 if __name__ == '__main__':
 
