@@ -2,6 +2,10 @@
 This script allows you to dowload a pair of different language subtitles for a movie from [opensubtitles.org](www.opensubtitles.org). You can take a parallel text and practice you translation skill that will help you to learn a foreign language.
 All subtitles you've downloaded are stored on the disk and can be used later in the learning process.
 # How to use (from Python)
+## Requirements
+python3
+
+SRT processing library (https://github.com/cdown/srt)
 ## Quick start
 ```python
 >>> import pairsubs
