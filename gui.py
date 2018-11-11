@@ -12,6 +12,7 @@ def on_show_clicked(button):
 # import ipdb; ipdb.set_trace()
 
 
+
 class AppBox(urwid.Frame):
     def __init__(self):
         self.left_text = urwid.Text('', align='left')
@@ -19,7 +20,17 @@ class AppBox(urwid.Frame):
         c = urwid.Columns((self.left_text, self.right_text))
         self.app_box = urwid.LineBox(urwid.Filler(c, 'top'))
         self.app_but = urwid.Padding(urwid.Button('Show'), 'center', 8)
-        self.__super.__init__(self.app_box, footer=self.app_but, focus_part='footer')
+        super().__init__(self.app_box, footer=self.app_but, focus_part='footer')
+
+
+class SearchBox(urwid.Frame):
+    def __init__(self):
+        self.left_text = urwid.Text('', align='left')
+        self.right_text = urwid.Text('', align='left')
+        c = urwid.Columns((self.left_text, self.right_text))
+        self.app_box = urwid.LineBox(urwid.Filler(c, 'top'))
+        self.app_but = urwid.Padding(urwid.Button('Search'), 'center', 10)
+        super().__init__(self.app_box, footer=self.app_but, focus_part='footer')
 
 
 class CtrlButtons(urwid.Columns):
@@ -28,7 +39,7 @@ class CtrlButtons(urwid.Columns):
         self.align_but = urwid.Padding(urwid.Button('Align'), 'center', 9)
         self.list_but = urwid.Padding(urwid.Button('List'), 'center', 8)
         self.search_but = urwid.Padding(urwid.Button('Search'), 'center', 10)
-        self.__super.__init__((
+        super().__init__((
             self.home_but,
             self.align_but,
             self.list_but,
@@ -49,7 +60,6 @@ class TopFrame(urwid.Frame):
 app = TopFrame(AppBox(), footer=CtrlButtons(), focus_part='footer')
 loop = urwid.MainLoop(app)
 loop.run()
-
 
 db = pairsubs.SubDb()
 
