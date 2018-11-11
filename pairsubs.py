@@ -33,10 +33,16 @@ FILES_DIR = os.path.join(APP_DIR, 'files')
 CACHE_DB = '{}/cache.json'.format(APP_DIR)
 
 # Opensubtitles API retry count
-MAX_RETRY = 3
+MAX_RETRY = 5
+RETRY_DELAY = 3
 
 # Parse fail
 # https://www.imdb.com/title/tt0583453/?ref_=tt_ep_pr
+
+
+class OpensubtitlesError(Exception):
+    def __str__(self):
+        return 'Max retry number was exceeded during access to Opensubtitles.org'
 
 
 class ProxiedTransport(xmlrpc.client.Transport):
@@ -57,7 +63,7 @@ class Opensubtitles:
     Class for opensuntitles.org access
     '''
 
-    user_agent = "TemporaryUserAgent"
+    user_agent = "OS Test User Agent"
 
     def __init__(self):
         '''Init xml-rpc proxy'''
@@ -80,14 +86,14 @@ class Opensubtitles:
                 try:
                     res = func(self, *args, **kwargs)
                 except (xmlrpc.client.ProtocolError, http.client.ResponseNotReady) as e:
-                    # import ipdb; ipdb.set_trace()
-                    logger.info("Try #{} failed: ".format(1), e.errmsg)
-                    sleep(5)
+                    logger.info("Retry #{}".format(i+1))
+                    sleep(RETRY_DELAY)
                 else:
-                    logger.info("OK")
                     return res
+            raise OpensubtitlesError
         return wrapper
 
+    @retry
     def logout(self):
         ''' Logout from api.opensubtitles.org.'''
 
@@ -422,7 +428,7 @@ class SubPair:
                     self.subs[1].sub_info
                     ]}
 
-    def learn(self, length):
+    def learn_pair(self, length):
         while True:
             offset = random.random() * 100
             self.print_pair(offset, length, hide_right=True)
@@ -529,7 +535,7 @@ class SubDb():
 
         if sub_id not in self.cache:
             self.read_subpair(sub_id)
-        self.cache[sub_id].learn(20)
+        self.cache[sub_id].learn_pair(20)
 
         return self.cache[sub_id]
 
@@ -564,5 +570,5 @@ class SubDb():
 
 
 if __name__ == '__main__':
-    s = SubPair.download("5015956", "rus", "eng")
-    s.learn(s, 20)
+    db = SubDb()
+    db.learn()
