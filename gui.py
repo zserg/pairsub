@@ -1,26 +1,40 @@
 import urwid
-from random import randint
 import pairsubs
-
-
-def on_show_clicked(button):
-    new_text = 'English text:\n'
-    for i in range(randint(1, 20)):
-        new_text += '{}: text\n'.format(i)
-    right_text.set_text(new_text)
-
-# import ipdb; ipdb.set_trace()
-
 
 
 class AppBox(urwid.Frame):
     def __init__(self):
+        self.state = 'show'
         self.left_text = urwid.Text('', align='left')
         self.right_text = urwid.Text('', align='left')
+
         c = urwid.Columns((self.left_text, self.right_text))
         self.app_box = urwid.LineBox(urwid.Filler(c, 'top'))
         self.app_but = urwid.Padding(urwid.Button('Show'), 'center', 8)
         super().__init__(self.app_box, footer=self.app_but, focus_part='footer')
+
+        urwid.connect_signal(self.app_but.original_widget, 'click', self.button_on_click)
+
+        self.subs = []
+        self.get_subs()
+
+    def get_subs(self):
+        # import ipdb; ipdb.set_trace()
+        self.subs = db.get_subs()
+        text = '\n'.join([s.content for s in self.subs[0]])
+        self.left_text.set_text(text)
+        self.right_text.set_text('')
+
+    def button_on_click(self, button):
+        if self.state == 'show':
+            text = '\n'.join([s.content for s in self.subs[1]])
+            self.right_text.set_text(text)
+            self.app_but.original_widget.set_label('Next')
+            self.state = 'next'
+        else:
+            self.get_subs()
+            self.app_but.original_widget.set_label('Show')
+            self.state = 'show'
 
 
 class SearchBox(urwid.Frame):
@@ -57,11 +71,12 @@ class TopFrame(urwid.Frame):
             return self.focus.keypress(size, key)
 
 
-app = TopFrame(AppBox(), footer=CtrlButtons(), focus_part='footer')
+db = pairsubs.SubDb()
+
+app = TopFrame(AppBox(), footer=CtrlButtons(), focus_part='body')
 loop = urwid.MainLoop(app)
 loop.run()
 
-db = pairsubs.SubDb()
 
 
 

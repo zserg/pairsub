@@ -539,6 +539,14 @@ class SubDb():
 
         return self.cache[sub_id]
 
+    def get_subs(self, sub_id=None):
+        if not sub_id:  # get random sub
+            sub_id = random.choice(list(self.data.keys()))
+
+        if sub_id not in self.cache:
+            self.read_subpair(sub_id)
+        return self.cache[sub_id].get_parallel_subs(random.randint(0,100), 50)
+
     def delete(self, sub_id):
         # remove subtitles files
         for s in self.data[sub_id]['subs']:
