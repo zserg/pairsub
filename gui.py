@@ -47,6 +47,15 @@ class SearchBox(urwid.Frame):
         super().__init__(self.app_box, footer=self.app_but, focus_part='footer')
 
 
+class SubsListBox(urwid.Frame):
+    def __init__(self):
+        s = [urwid.Text(x[1]['subs'][0]['MovieName']) for x in db.data.items()]
+        self.subs = urwid.ListBox(urwid.SimpleFocusListWalker(s))
+        self.app_box = urwid.LineBox(self.subs)
+        self.app_but = urwid.Padding(urwid.Button('List'), 'center', 10)
+        super().__init__(self.app_box, footer=self.app_but, focus_part='footer')
+
+
 class CtrlButtons(urwid.Columns):
     def __init__(self):
         self.home_but = urwid.Button('Home')
@@ -67,6 +76,7 @@ class TopFrame(urwid.Frame):
         # import ipdb; ipdb.set_trace()
         urwid.connect_signal(self.contents['footer'][0].search_but, 'click', self.set_search_mode)
         urwid.connect_signal(self.contents['footer'][0].home_but, 'click', self.set_show_mode)
+        urwid.connect_signal(self.contents['footer'][0].list_but, 'click', self.set_list_mode)
 
     def keypress(self, size, key):
         if key == 'up':
@@ -82,6 +92,11 @@ class TopFrame(urwid.Frame):
 
     def set_show_mode(self, button):
         body = AppBox()
+        self.contents['body'] = (body, body.options())
+
+    def set_list_mode(self, button):
+        body = SubsListBox()
+        # import ipdb; ipdb.set_trace()
         self.contents['body'] = (body, body.options())
 
 
