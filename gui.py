@@ -39,12 +39,25 @@ class AppBox(urwid.Frame):
 
 class SearchBox(urwid.Frame):
     def __init__(self):
-        self.left_text = urwid.Text('', align='left')
-        self.right_text = urwid.Text('', align='left')
-        c = urwid.Columns((self.left_text, self.right_text))
-        self.app_box = urwid.LineBox(urwid.Filler(c, 'top'))
+
+        self.url = urwid.LineBox(urwid.Edit('URL:  '))
+        self.lang1 = urwid.LineBox(urwid.Edit('Lang #1:  '))
+        self.lang2 = urwid.LineBox(urwid.Edit('Lang #2:  '))
+        s = [self.url, self.lang1, self.lang2]
+        self.subs = urwid.ListBox(urwid.SimpleFocusListWalker(s))
+
+        self.app_box = urwid.LineBox(self.subs)
         self.app_but = urwid.Padding(urwid.Button('Search'), 'center', 10)
-        super().__init__(self.app_box, footer=self.app_but, focus_part='footer')
+        super().__init__(self.app_box, footer=self.app_but, focus_part='body')
+
+    def keypress(self, size, key):
+        # import ipdb; ipdb.set_trace()
+        if key == 'down' and self.get_focus_path() == ['body', 2]:
+            self.focus_position = 'footer'
+        elif key == 'up' and self.focus_position == 'footer':
+            self.set_focus_path(['body', 2])
+        else:
+            return self.focus.keypress(size, key)
 
 
 class SubsListBox(urwid.Frame):
@@ -79,9 +92,9 @@ class TopFrame(urwid.Frame):
         urwid.connect_signal(self.contents['footer'][0].list_but, 'click', self.set_list_mode)
 
     def keypress(self, size, key):
-        if key == 'up':
+        if key == 'up' and self.focus_position == 'footer':
             self.focus_position = 'body'
-        elif key == 'down':
+        elif key == 'down' and self.get_focus_path() == ['body', 'footer']:
             self.focus_position = 'footer'
         else:
             return self.focus.keypress(size, key)
@@ -96,13 +109,12 @@ class TopFrame(urwid.Frame):
 
     def set_list_mode(self, button):
         body = SubsListBox()
-        # import ipdb; ipdb.set_trace()
         self.contents['body'] = (body, body.options())
 
 
 db = pairsubs.SubDb()
 
-app = TopFrame(AppBox(), footer=CtrlButtons(), focus_part='body')
+app = TopFrame(AppBox(), footer=CtrlButtons(), focus_part='footer')
 loop = urwid.MainLoop(app)
 loop.run()
 
