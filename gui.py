@@ -1,6 +1,25 @@
 import urwid
+import io
 import pairsubs
+import logging
+import time
 
+class SubsLogStream(io.StringIO):
+    ''' Stream for logging into a Text box'''
+
+    def __init__(self, box):
+        '''
+        Args:
+            box (urwid.Text): text widget to print into
+        '''
+        self.box = box
+
+    def write(self, message):
+        '''
+        Args:
+            message (str): message top print
+        '''
+        self.box.set_text(self.box.text+message)
 
 class AppBox(urwid.Frame):
     def __init__(self):
@@ -40,10 +59,16 @@ class AppBox(urwid.Frame):
 class SearchBox(urwid.Frame):
     def __init__(self):
 
-        self.url = urwid.LineBox(urwid.Edit('URL:  '))
-        self.lang1 = urwid.LineBox(urwid.Edit('Lang #1:  '))
-        self.lang2 = urwid.LineBox(urwid.Edit('Lang #2:  '))
-        s = [self.url, self.lang1, self.lang2]
+        self.url = urwid.Edit('URL:  ')
+        self.lang1 = urwid.Edit('Lang #1:  ')
+        self.lang2 = urwid.Edit('Lang #2:  ')
+        self.log = urwid.Text('')
+        s = [
+             urwid.LineBox(self.url),
+             urwid.LineBox(self.lang1),
+             urwid.LineBox(self.lang2),
+             self.log
+             ]
         self.subs = urwid.ListBox(urwid.SimpleFocusListWalker(s))
 
         self.app_box = urwid.LineBox(self.subs)
@@ -51,11 +76,14 @@ class SearchBox(urwid.Frame):
         super().__init__(self.app_box, footer=self.app_but, focus_part='body')
 
     def keypress(self, size, key):
-        # import ipdb; ipdb.set_trace()
         if key == 'down' and self.get_focus_path() == ['body', 2]:
             self.focus_position = 'footer'
         elif key == 'up' and self.focus_position == 'footer':
             self.set_focus_path(['body', 2])
+        elif key == 'enter' and self.focus_position == 'footer':
+            # import ipdb; ipdb.set_trace()
+            self.log.set_text('')
+            db.download(self.url.get_edit_text(), self.lang1.get_edit_text(), self.lang2.get_edit_text())
         else:
             return self.focus.keypress(size, key)
 
@@ -87,6 +115,10 @@ class TopFrame(urwid.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # import ipdb; ipdb.set_trace()
+
+        self.search_box = SearchBox()
+        self.app_box = AppBox()
+
         urwid.connect_signal(self.contents['footer'][0].search_but, 'click', self.set_search_mode)
         urwid.connect_signal(self.contents['footer'][0].home_but, 'click', self.set_show_mode)
         urwid.connect_signal(self.contents['footer'][0].list_but, 'click', self.set_list_mode)
@@ -100,21 +132,28 @@ class TopFrame(urwid.Frame):
             return self.focus.keypress(size, key)
 
     def set_search_mode(self, button):
-        body = SearchBox()
+        body = self.search_box
         self.contents['body'] = (body, body.options())
 
     def set_show_mode(self, button):
-        body = AppBox()
+        body = self.app_box
         self.contents['body'] = (body, body.options())
 
     def set_list_mode(self, button):
         body = SubsListBox()
         self.contents['body'] = (body, body.options())
 
+logging.basicConfig()
+logging.getLogger().setLevel(logging.INFO)
 
 db = pairsubs.SubDb()
-
 app = TopFrame(AppBox(), footer=CtrlButtons(), focus_part='footer')
+
+log_box = app.search_box.log
+log_handler = logging.StreamHandler(SubsLogStream(log_box))
+logging.getLogger('pairsubs').addHandler(log_handler)
+logging.getLogger('pairsubs').propagate = False
+
 loop = urwid.MainLoop(app)
 loop.run()
 

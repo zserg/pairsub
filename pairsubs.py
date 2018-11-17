@@ -15,10 +15,13 @@ import json
 import codecs
 import re
 from time import sleep
-import logging
 
-logging.basicConfig(level=logging.INFO)
+import logging
+from logging import NullHandler
+
 logger = logging.getLogger(__name__)
+logger.addHandler(NullHandler())
+
 
 COLUMN_WIDTH = 40
 OPENSUBTUTLES_MAX_RETRY = 3
@@ -490,7 +493,8 @@ class SubDb():
             self.data[sub_id] = sub_data
 
     def download(self, imdbid, lang1, lang2):
-        sub_pair = SubPair.download(imdbid, lang1, lang2)
+        # import ipdb; ipdb.set_trace()
+        sub_pair, log = SubPair.download(imdbid, lang1, lang2)
         if sub_pair:
             self.add_subpair(sub_pair)
             self.add_to_cache(sub_pair)
