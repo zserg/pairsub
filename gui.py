@@ -40,9 +40,10 @@ class AppBox(urwid.Frame):
     def get_subs(self):
         # import ipdb; ipdb.set_trace()
         self.subs = db.get_subs()
-        text = '\n'.join([s.content for s in self.subs[0]])
-        self.left_text.set_text(text)
-        self.right_text.set_text('')
+        if self.subs:
+            text = '\n'.join([s.content for s in self.subs[0]])
+            self.left_text.set_text(text)
+            self.right_text.set_text('')
 
     def button_on_click(self, button):
         if self.state == 'show':
@@ -90,11 +91,41 @@ class SearchBox(urwid.Frame):
 
 class SubsListBox(urwid.Frame):
     def __init__(self):
-        s = [urwid.Text(x[1]['subs'][0]['MovieName']) for x in db.data.items()]
+        self.subs_list = list(db.data.items())
+        # import ipdb; ipdb.set_trace()
+        s = [urwid.CheckBox(self.sub_format(x[1])) for x in self.subs_list]
         self.subs = urwid.ListBox(urwid.SimpleFocusListWalker(s))
         self.app_box = urwid.LineBox(self.subs)
-        self.app_but = urwid.Padding(urwid.Button('List'), 'center', 10)
+        self.app_but = urwid.Padding(urwid.Button('Delete'), 'center', 10)
         super().__init__(self.app_box, footer=self.app_but, focus_part='footer')
+
+    def sub_format(self, sub):
+        return '{} ({}, {})'.format(
+                sub['subs'][0]['MovieName'],
+                sub['subs'][0]['SubLanguageID'],
+                sub['subs'][1]['SubLanguageID'],
+                )
+
+    def keypress(self, size, key):
+        # import ipdb; ipdb.set_trace()
+        if key == 'down' and self.get_focus_path() == ['body', len(self.subs.body)-1]:
+            self.focus_position = 'footer'
+        elif key == 'up' and self.focus_position == 'footer' and self.subs.body:
+            self.set_focus_path(['body', 0])
+        elif key == 'enter' and self.focus_position == 'footer':
+            self.delete_subs()
+            self.__init__()
+            self.focus_position = 'body'
+            self.focus_position = 'footer'
+        else:
+            return self.focus.keypress(size, key)
+
+    def delete_subs(self):
+        for i, e in enumerate(self.subs.body):
+            if e.get_state():
+                db.delete(self.subs_list[i][0])
+
+
 
 
 class CtrlButtons(urwid.Columns):
@@ -133,6 +164,7 @@ class TopFrame(urwid.Frame):
 
     def set_search_mode(self, button):
         body = self.search_box
+        body.log.set_text('')
         self.contents['body'] = (body, body.options())
 
     def set_show_mode(self, button):

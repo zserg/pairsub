@@ -544,12 +544,13 @@ class SubDb():
         return self.cache[sub_id]
 
     def get_subs(self, sub_id=None):
-        if not sub_id:  # get random sub
-            sub_id = random.choice(list(self.data.keys()))
+        if self.data:
+            if not sub_id:  # get random sub
+                sub_id = random.choice(list(self.data.keys()))
 
-        if sub_id not in self.cache:
-            self.read_subpair(sub_id)
-        return self.cache[sub_id].get_parallel_subs(random.randint(0,100), 50)
+            if sub_id not in self.cache:
+                self.read_subpair(sub_id)
+            return self.cache[sub_id].get_parallel_subs(random.randint(0,100), 20)
 
     def delete(self, sub_id):
         # remove subtitles files
@@ -566,6 +567,8 @@ class SubDb():
             del self.cache[sub_id]
         except KeyError:
             pass
+
+        self.write_db()
 
     def print_for_align(self, sub_id, count=4):
         if sub_id not in self.cache:
