@@ -544,6 +544,7 @@ class SubDb():
         return self.cache[sub_id]
 
     def get_subs(self, sub_id=None):
+        print(
         if self.data:
             if not sub_id:  # get random sub
                 sub_id = random.choice(list(self.data.keys()))

@@ -22,7 +22,7 @@ class SubsLogStream(io.StringIO):
         self.box.set_text(self.box.text+message)
 
 class AppBox(urwid.Frame):
-    def __init__(self):
+    def __init__(self, sub_id=None):
         self.state = 'show'
         self.left_text = urwid.Text('', align='left')
         self.right_text = urwid.Text('', align='left')
@@ -34,12 +34,13 @@ class AppBox(urwid.Frame):
 
         urwid.connect_signal(self.app_but.original_widget, 'click', self.button_on_click)
 
+        self.sub_id = sub_id
         self.subs = []
         self.get_subs()
 
     def get_subs(self):
         # import ipdb; ipdb.set_trace()
-        self.subs = db.get_subs()
+        self.subs = db.get_subs(self.sub_id)
         if self.subs:
             text = '\n'.join([s.content for s in self.subs[0]])
             self.left_text.set_text(text)
@@ -117,6 +118,9 @@ class SubsListBox(urwid.Frame):
             self.__init__()
             self.focus_position = 'body'
             self.focus_position = 'footer'
+        elif key == 'enter' and self.focus_position == 'body':
+            import ipdb; ipdb.set_trace()
+
         else:
             return self.focus.keypress(size, key)
 
@@ -159,6 +163,12 @@ class TopFrame(urwid.Frame):
             self.focus_position = 'body'
         elif key == 'down' and self.get_focus_path() == ['body', 'footer']:
             self.focus_position = 'footer'
+        elif key == 'enter' and isinstance(self.body, SubsListBox):
+            idx = self.get_focus_path()[2]  # ['body', 'body', 0]
+            sub_id = self.contents['body'][0].subs_list[idx][0]
+            # import ipdb; ipdb.set_trace()
+
+            self.set_show_mode(sub_id)
         else:
             return self.focus.keypress(size, key)
 
@@ -167,8 +177,8 @@ class TopFrame(urwid.Frame):
         body.log.set_text('')
         self.contents['body'] = (body, body.options())
 
-    def set_show_mode(self, button):
-        body = self.app_box
+    def set_show_mode(self, button, sub_id=None):
+        body = AppBox(sub_id)
         self.contents['body'] = (body, body.options())
 
     def set_list_mode(self, button):
