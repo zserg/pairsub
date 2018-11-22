@@ -2,7 +2,7 @@ import urwid
 import io
 import pairsubs
 import logging
-import time
+
 
 class SubsLogStream(io.StringIO):
     ''' Stream for logging into a Text box'''
@@ -21,14 +21,18 @@ class SubsLogStream(io.StringIO):
         '''
         self.box.set_text(self.box.text+message)
 
+
 class AppBox(urwid.Frame):
     def __init__(self, sub_id=None):
         self.state = 'show'
+
+        # import ipdb; ipdb.set_trace()
+        self.title = urwid.Text('Title', align='left')
         self.left_text = urwid.Text('', align='left')
         self.right_text = urwid.Text('', align='left')
-
         c = urwid.Columns((self.left_text, self.right_text))
-        self.app_box = urwid.LineBox(urwid.Filler(c, 'top'))
+        pile = urwid.Pile([self.title, urwid.Divider(' '), c])
+        self.app_box = urwid.LineBox(urwid.Filler(pile, 'top'))
         self.app_but = urwid.Padding(urwid.Button('Show'), 'center', 8)
         super().__init__(self.app_box, footer=self.app_but, focus_part='footer')
 
@@ -39,12 +43,17 @@ class AppBox(urwid.Frame):
         self.get_subs()
 
     def get_subs(self):
-        # import ipdb; ipdb.set_trace()
-        self.subs = db.get_subs(self.sub_id)
+        sub_id, self.subs = db.get_subs(self.sub_id)
         if self.subs:
             text = '\n'.join([s.content for s in self.subs[0]])
             self.left_text.set_text(text)
             self.right_text.set_text('')
+            sub_title ='{} ({}, {})'.format(
+                    db.data[sub_id]['subs'][0]['MovieName'],
+                    db.data[sub_id]['subs'][0]['SubLanguageID'],
+                    db.data[sub_id]['subs'][1]['SubLanguageID']
+                    )
+            self.title.set_text(sub_title)
 
     def button_on_click(self, button):
         if self.state == 'show':
@@ -168,7 +177,7 @@ class TopFrame(urwid.Frame):
             sub_id = self.contents['body'][0].subs_list[idx][0]
             # import ipdb; ipdb.set_trace()
 
-            self.set_show_mode(sub_id)
+            self.set_show_mode(None, sub_id)
         else:
             return self.focus.keypress(size, key)
 
@@ -180,10 +189,12 @@ class TopFrame(urwid.Frame):
     def set_show_mode(self, button, sub_id=None):
         body = AppBox(sub_id)
         self.contents['body'] = (body, body.options())
+        self.focus_position = 'body'
 
     def set_list_mode(self, button):
         body = SubsListBox()
         self.contents['body'] = (body, body.options())
+
 
 logging.basicConfig()
 logging.getLogger().setLevel(logging.INFO)

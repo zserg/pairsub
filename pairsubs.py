@@ -503,7 +503,6 @@ class SubDb():
             return sub_pair.get_id()
 
     def write_db(self):
-
         # update db data with the alignment data from cache
         keys = ('first_start', 'first_end',
                 'second_start', 'second_end')
@@ -544,14 +543,13 @@ class SubDb():
         return self.cache[sub_id]
 
     def get_subs(self, sub_id=None):
-        print(
         if self.data:
             if not sub_id:  # get random sub
                 sub_id = random.choice(list(self.data.keys()))
 
             if sub_id not in self.cache:
                 self.read_subpair(sub_id)
-            return self.cache[sub_id].get_parallel_subs(random.randint(0,100), 20)
+            return (sub_id, self.cache[sub_id].get_parallel_subs(random.randint(0,100), 20))
 
     def delete(self, sub_id):
         # remove subtitles files
