@@ -127,9 +127,6 @@ class SubsListBox(urwid.Frame):
             self.__init__()
             self.focus_position = 'body'
             self.focus_position = 'footer'
-        elif key == 'enter' and self.focus_position == 'body':
-            import ipdb; ipdb.set_trace()
-
         else:
             return self.focus.keypress(size, key)
 
@@ -137,8 +134,6 @@ class SubsListBox(urwid.Frame):
         for i, e in enumerate(self.subs.body):
             if e.get_state():
                 db.delete(self.subs_list[i][0])
-
-
 
 
 class CtrlButtons(urwid.Columns):
