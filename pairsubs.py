@@ -3,6 +3,7 @@ import http.client
 import base64
 import zlib
 import srt
+from srt import SRTParseError
 from bs4 import UnicodeDammit
 import textwrap
 import itertools
@@ -13,10 +14,18 @@ import os
 import json
 import codecs
 import re
+from time import sleep
 
+import logging
+from logging import NullHandler
+
+logger = logging.getLogger(__name__)
+logger.addHandler(NullHandler())
 
 
 COLUMN_WIDTH = 40
+OPENSUBTUTLES_MAX_RETRY = 3
+
 
 #: Directory in which to store PaiSubs cache.
 APP_DIR = '{}/.pairsubs'.format(os.path.expanduser('~'))
@@ -25,6 +34,19 @@ FILES_DIR = os.path.join(APP_DIR, 'files')
 
 #: File in which to store details aboud downloaded subtitles
 CACHE_DB = '{}/cache.json'.format(APP_DIR)
+
+# Opensubtitles API retry count
+MAX_RETRY = 5
+RETRY_DELAY = 3
+
+# Parse fail
+# https://www.imdb.com/title/tt0583453/?ref_=tt_ep_pr
+
+
+class OpensubtitlesError(Exception):
+    def __str__(self):
+        return 'Max retry number was exceeded during access to Opensubtitles.org'
+
 
 class ProxiedTransport(xmlrpc.client.Transport):
 
@@ -44,7 +66,7 @@ class Opensubtitles:
     Class for opensuntitles.org access
     '''
 
-    user_agent = "TemporaryUserAgent"
+    user_agent = "OS Test User Agent"
 
     def __init__(self):
         '''Init xml-rpc proxy'''
@@ -55,28 +77,39 @@ class Opensubtitles:
             transport = ProxiedTransport()
             transport.set_proxy(parsed)
             self.proxy = xmlrpc.client.ServerProxy(
-                    "https://api.opensubtitles.org/xml-rpc", transport=transport)
+                    "https://api.opensubtitles.org/xml-rpc",
+                    transport=transport)
         else:
             self.proxy = xmlrpc.client.ServerProxy(
                     "https://api.opensubtitles.org/xml-rpc")
 
+    def retry(func):
+        def wrapper(self, *args, **kwargs):
+            for i in range(MAX_RETRY):
+                try:
+                    res = func(self, *args, **kwargs)
+                except (xmlrpc.client.ProtocolError, http.client.ResponseNotReady) as e:
+                    logger.info("Retry #{}".format(i+1))
+                    sleep(RETRY_DELAY)
+                else:
+                    return res
+            raise OpensubtitlesError
+        return wrapper
+
+    @retry
     def logout(self):
         ''' Logout from api.opensubtitles.org.'''
 
-        try:
-            self.proxy.LogOut(self.token)
-        except xmlrpc.client.ProtocolError as err:
-            print("Opensubtitles API protocol error: {0}".format(err))
+        logger.info("Opensubtitles: Logout...")
+        self.proxy.LogOut(self.token)
 
+    @retry
     def login(self):
         ''' Login into api.opensubtitles.org.'''
 
-        try:
-            login = self.proxy.LogIn("", "", "en", "TemporaryUserAgent")
-        except xmlrpc.client.ProtocolError as err:
-            print("Opensubtitles API protocol error: {0}".format(err))
-        else:
-            self.token = login['token']
+        logger.info("Opensubtitles: Login...")
+        login = self.proxy.LogIn("", "", "en", "TemporaryUserAgent")
+        self.token = login['token']
 
     def _select_sub_(self, subtitles):
         ''' Select subtitles that have maximal downloads count'''
@@ -89,6 +122,7 @@ class Opensubtitles:
                 top_sub = sub
         return top_sub
 
+    @retry
     def search_sub(self, imdbid, lang):
         '''
         Search the subtitles in Opensubtitles database
@@ -101,17 +135,15 @@ class Opensubtitles:
         Returns:
             sub (dict): subtitles info in Opensubtitles API format
         '''
+        logger.info("Opensubtitles: search...")
         imdb = re.search('\d+', imdbid)[0]
-        try:
-            result = self.proxy.SearchSubtitles(
-                    self.token,
-                    [{'imdbid': str(imdb), 'sublanguageid': lang}],
-                    [100])
-        except xmlrpc.client.ProtocolError as err:
-            print("Opensubtitles API protocol error: {0}".format(err))
-        else:
-            return self._select_sub_(result['data'])
+        result = self.proxy.SearchSubtitles(
+                self.token,
+                [{'imdbid': str(imdb), 'sublanguageid': lang}],
+                [100])
+        return self._select_sub_(result['data'])
 
+    @retry
     def download_sub(self, sub):
         '''
         Download subtitles from subtitles.org.
@@ -120,15 +152,12 @@ class Opensubtitles:
         Return:
             data_bytes (bytes): downloaded subtitles
         '''
-        try:
-            result = self.proxy.DownloadSubtitles(self.token,
-                                                  [sub['IDSubtitleFile']])
-        except xmlrpc.client.ProtocolError as err:
-            print("Opensubtitles API protocol error: {0}".format(err))
-        else:
-            data_zipped = base64.b64decode(result['data'][0]['data'])
-            data_bytes = zlib.decompress(data_zipped, 15+32)
-            return data_bytes
+        logger.info("Opensubtitles: download...")
+        result = self.proxy.DownloadSubtitles(self.token,
+                                              [sub['IDSubtitleFile']])
+        data_zipped = base64.b64decode(result['data'][0]['data'])
+        data_bytes = zlib.decompress(data_zipped, 15+32)
+        return data_bytes
 
 
 class Subs:
@@ -152,7 +181,8 @@ class Subs:
 
         # Decode bytes to Unicode string
         if decode:
-            data_decoded = self.sub_decode(sub_data, self.sub_info['SubEncoding'])
+            data_decoded = self.sub_decode(sub_data,
+                                           self.sub_info['SubEncoding'])
         else:
             data_decoded = sub_data
 
@@ -171,7 +201,6 @@ class Subs:
             sub_data (bytes): subtitles in SRT format
             encoding: (str): encoding
         '''
-        # import ipdb; ipdb.set_trace()
         if encoding:
             if data.startswith(codecs.BOM_UTF8):
                 enc = 'utf-8-sig'
@@ -189,7 +218,6 @@ class Subs:
 
     @classmethod
     def read(cls, sub_info):
-        # import ipdb; ipdb.set_trace()
         name = os.path.join(FILES_DIR, sub_info['SubFileName'])
         with open(name, 'r') as f:
             data = f.read()
@@ -208,7 +236,7 @@ class Subs:
         subs = []
         for s in self.sub:
             if (s.start >= self.seconds_to_timedelta(start) and
-                s.start <= self.seconds_to_timedelta(end)):
+                    s.start <= self.seconds_to_timedelta(end)):
                 subs.append(s)
         return subs
 
@@ -216,8 +244,8 @@ class Subs:
         try:
             sub = list(srt.parse(data))
             return sub
-        except ValueError as e:
-            print("Subtitles parsing failed: {}".format(e))
+        except (ValueError, SRTParseError) as e:
+            logger.error("Subtitles parsing failed: {}".format(e))
             return []
 
     def seconds_to_timedelta(self, seconds):
@@ -246,34 +274,47 @@ class SubPair:
 
     @classmethod
     def download(cls, imdbid, lang1, lang2, enc1=None, enc2=None):
+        log = ""
+        logger.info("Start subtitles download: {} ({}, {})".format(
+                                           imdbid, lang1, lang2))
+        state = "Login into Opensubtitles..."
+        logger.info(state)
+        log += (state+"\n")
         osub = Opensubtitles()
         osub.login()
 
         subs = []
         for lang, enc in [(lang1, enc1), (lang2, enc2)]:
+            state = "Search {}...".format(lang)
+            logger.info(state)
+            log += (state+"\n")
             sub = osub.search_sub(imdbid, lang)
             if sub:
-                print("Downloading {} ...".format(lang))
+                state = "Download {}...".format(lang)
+                logger.info(state)
+                log += (state+"\n")
                 sub_b = osub.download_sub(sub)
-                # import ipdb; ipdb.set_trace()
                 s = Subs(sub_b, sub)
                 if s.sub:
                     subs.append(s)
                 else:
-                    print("Failed the subtitles parsing")
-                    return None
+                    state = "Failed the subtitles parsing".format(lang)
+                    logger.info(state)
+                    log += (state+"\n")
+                    return None, log
             else:
-                print("Subtitles #{} isn't found".format(imdbid))
+                state = "Subtitles #{} aren't found".format(lang)
+                logger.info(state)
+                log += (state+"\n")
                 osub.logout()
-                return None
+                return None, log
 
         osub.logout()
-        return cls(subs)
+        return cls(subs), log
 
     @classmethod
     def read(cls, info):
         subs = []
-        # import ipdb; ipdb.set_trace()
         for sub in info['subs']:
             s = Subs.read(sub)
             subs.append(s)
@@ -390,7 +431,7 @@ class SubPair:
                     self.subs[1].sub_info
                     ]}
 
-    def learn(self, length):
+    def learn_pair(self, length):
         while True:
             offset = random.random() * 100
             self.print_pair(offset, length, hide_right=True)
@@ -407,7 +448,7 @@ class SubPair:
 
 
 class SubDb():
-
+    """ Subtitles Database Class """
     def __init__(self):
         self.data = self.load_data()
         self.cache = {}
@@ -418,7 +459,6 @@ class SubDb():
         '''
         # verify that the application directory (~/.pairsubs) exists,
         #   else create it
-        # import ipdb; ipdb.set_trace()
         if not os.path.exists(APP_DIR):
             os.makedirs(APP_DIR)
 
@@ -453,8 +493,8 @@ class SubDb():
             self.data[sub_id] = sub_data
 
     def download(self, imdbid, lang1, lang2):
-        sub_pair = SubPair.download(imdbid, lang1, lang2)
         # import ipdb; ipdb.set_trace()
+        sub_pair, log = SubPair.download(imdbid, lang1, lang2)
         if sub_pair:
             self.add_subpair(sub_pair)
             self.add_to_cache(sub_pair)
@@ -463,7 +503,6 @@ class SubDb():
             return sub_pair.get_id()
 
     def write_db(self):
-
         # update db data with the alignment data from cache
         keys = ('first_start', 'first_end',
                 'second_start', 'second_end')
@@ -499,12 +538,20 @@ class SubDb():
 
         if sub_id not in self.cache:
             self.read_subpair(sub_id)
-        self.cache[sub_id].learn(20)
+        self.cache[sub_id].learn_pair(20)
 
         return self.cache[sub_id]
 
-    def delete(self, sub_id):
+    def get_subs(self, sub_id=None):
+        if self.data:
+            if not sub_id:  # get random sub
+                sub_id = random.choice(list(self.data.keys()))
 
+            if sub_id not in self.cache:
+                self.read_subpair(sub_id)
+            return (sub_id, self.cache[sub_id].get_parallel_subs(random.randint(0,100), 20))
+
+    def delete(self, sub_id):
         # remove subtitles files
         for s in self.data[sub_id]['subs']:
             filename = os.path.join(FILES_DIR, s['SubFileName'])
@@ -519,6 +566,8 @@ class SubDb():
             del self.cache[sub_id]
         except KeyError:
             pass
+
+        self.write_db()
 
     def print_for_align(self, sub_id, count=4):
         if sub_id not in self.cache:
@@ -535,6 +584,5 @@ class SubDb():
 
 
 if __name__ == '__main__':
-
-    s = SubPair.download("5015956", "rus", "eng")
-    learn(s, 20)
+    db = SubDb()
+    db.learn()
