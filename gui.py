@@ -43,15 +43,15 @@ class AppBox(urwid.Frame):
         self.get_subs()
 
     def get_subs(self):
-        sub_id, self.subs = db.get_subs(self.sub_id)
+        self.sub_id, self.subs = db.get_subs(self.sub_id)
         if self.subs:
             text = '\n'.join([s.content for s in self.subs[0]])
             self.left_text.set_text(text)
             self.right_text.set_text('')
-            sub_title ='{} ({}, {})'.format(
-                    db.data[sub_id]['subs'][0]['MovieName'],
-                    db.data[sub_id]['subs'][0]['SubLanguageID'],
-                    db.data[sub_id]['subs'][1]['SubLanguageID']
+            sub_title = '{} ({}, {})'.format(
+                    db.data[self.sub_id]['subs'][0]['MovieName'],
+                    db.data[self.sub_id]['subs'][0]['SubLanguageID'],
+                    db.data[self.sub_id]['subs'][1]['SubLanguageID']
                     )
             self.title.set_text(sub_title)
 
@@ -100,9 +100,9 @@ class SearchBox(urwid.Frame):
 
 
 class SubsListBox(urwid.Frame):
-    def __init__(self):
+    def __init__(self, top_frame):
+        self.top_frame = top_frame
         self.subs_list = list(db.data.items())
-        # import ipdb; ipdb.set_trace()
         s = [urwid.CheckBox(self.sub_format(x[1])) for x in self.subs_list]
         self.subs = urwid.ListBox(urwid.SimpleFocusListWalker(s))
         self.app_box = urwid.LineBox(self.subs)
@@ -127,6 +127,65 @@ class SubsListBox(urwid.Frame):
             self.__init__()
             self.focus_position = 'body'
             self.focus_position = 'footer'
+        elif key == 'enter' and self.focus_position == 'body':
+            # import ipdb; ipdb.set_trace()
+            idx = self.get_focus_path()[1]  # ['body', 0]
+            sub_id = self.subs_list[idx][0]
+            self.top_frame.set_show_mode(None, sub_id)
+        else:
+            return self.focus.keypress(size, key)
+
+    def delete_subs(self):
+        for i, e in enumerate(self.subs.body):
+            if e.get_state():
+                db.delete(self.subs_list[i][0])
+
+class SubsAlignBox(urwid.Frame):
+    def __init__(self, top_frame, sub_id):
+        self.top_frame = top_frame
+        self.subs_id = sub_id
+        self.subs = db.get_subs_to_align(sub_id, 8)
+
+        # import ipdb; ipdb.set_trace()
+        bg_lt = []
+        bg_rt = []
+        bg_lb = []
+        bg_rb = []
+        left_top = [urwid.RadioButton(bg_lt, x.content) for x in self.subs[0]]
+        right_top = [urwid.RadioButton(bg_rt, x.content) for x in self.subs[1]]
+        left_bot = [urwid.RadioButton(bg_lb, x.content) for x in self.subs[2]]
+        right_bot = [urwid.RadioButton(bg_rb, x.content) for x in self.subs[3]]
+
+        left_top_box = urwid.ListBox(urwid.SimpleFocusListWalker(left_top))
+        right_top_box = urwid.ListBox(urwid.SimpleFocusListWalker(right_top))
+        left_bot_box = urwid.ListBox(urwid.SimpleFocusListWalker(left_bot))
+        right_bot_box = urwid.ListBox(urwid.SimpleFocusListWalker(right_bot))
+
+        c_top = urwid.Columns([left_top_box, right_top_box])
+        c_bot = urwid.Columns([left_bot_box, right_bot_box])
+
+        p = urwid.Pile([c_top, c_bot])
+        self.app_box = urwid.LineBox(p)
+        self.app_but = urwid.Padding(urwid.Button('Align'), 'center', 10)
+        super().__init__(self.app_box, footer=self.app_but, focus_part='body')
+
+    def sub_format(self, sub):
+        return '{} ({}, {})'.format(
+                sub['subs'][0]['MovieName'],
+                sub['subs'][0]['SubLanguageID'],
+                sub['subs'][1]['SubLanguageID'],
+                )
+
+    def keypress(self, size, key):
+        # import ipdb; ipdb.set_trace()
+        if key == 'down' and self.get_focus_path() == ['body', 1, 0, len(self.subs[0])-1]:
+            self.focus_position = 'footer'
+        elif key == 'down' and self.get_focus_path() == ['body', 1, 1, len(self.subs[1])-1]:
+            self.focus_position = 'footer'
+        elif key == 'up' and self.focus_position == 'footer':
+            self.focus_position = 'body'
+        elif key == 'enter' and self.focus_position == 'footer':
+            self.top_frame.set_show_mode(None, self.subs_id)
         else:
             return self.focus.keypress(size, key)
 
@@ -153,7 +212,6 @@ class CtrlButtons(urwid.Columns):
 class TopFrame(urwid.Frame):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # import ipdb; ipdb.set_trace()
 
         self.search_box = SearchBox()
         self.app_box = AppBox()
@@ -161,18 +219,13 @@ class TopFrame(urwid.Frame):
         urwid.connect_signal(self.contents['footer'][0].search_but, 'click', self.set_search_mode)
         urwid.connect_signal(self.contents['footer'][0].home_but, 'click', self.set_show_mode)
         urwid.connect_signal(self.contents['footer'][0].list_but, 'click', self.set_list_mode)
+        urwid.connect_signal(self.contents['footer'][0].align_but, 'click', self.set_align_mode)
 
     def keypress(self, size, key):
         if key == 'up' and self.focus_position == 'footer':
             self.focus_position = 'body'
         elif key == 'down' and self.get_focus_path() == ['body', 'footer']:
             self.focus_position = 'footer'
-        elif key == 'enter' and isinstance(self.body, SubsListBox):
-            idx = self.get_focus_path()[2]  # ['body', 'body', 0]
-            sub_id = self.contents['body'][0].subs_list[idx][0]
-            # import ipdb; ipdb.set_trace()
-
-            self.set_show_mode(None, sub_id)
         else:
             return self.focus.keypress(size, key)
 
@@ -187,7 +240,12 @@ class TopFrame(urwid.Frame):
         self.focus_position = 'body'
 
     def set_list_mode(self, button):
-        body = SubsListBox()
+        body = SubsListBox(self)
+        self.contents['body'] = (body, body.options())
+
+    def set_align_mode(self, button):
+        sub_id = self.contents['body'][0].sub_id
+        body = SubsAlignBox(self, sub_id)
         self.contents['body'] = (body, body.options())
 
 

@@ -551,6 +551,18 @@ class SubDb():
                 self.read_subpair(sub_id)
             return (sub_id, self.cache[sub_id].get_parallel_subs(random.randint(0,100), 20))
 
+    def get_subs_to_align(self, sub_id, count=4):
+        # import ipdb; ipdb.set_trace()
+        if self.data:
+            if sub_id not in self.cache:
+                self.read_subpair(sub_id)
+            subs = [self.cache[sub_id].subs[0].sub[:count], # First sub, begin
+                    self.cache[sub_id].subs[1].sub[:count], # Second sub, begin,
+                    self.cache[sub_id].subs[0].sub[-1-count:-1], # First sub, end
+                    self.cache[sub_id].subs[1].sub[-1-count:-1], # Second sub, end
+                    ]
+            return subs
+
     def delete(self, sub_id):
         # remove subtitles files
         for s in self.data[sub_id]['subs']:
