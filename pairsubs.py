@@ -543,23 +543,28 @@ class SubDb():
         return self.cache[sub_id]
 
     def get_subs(self, sub_id=None):
+        logger.info('get_subs id={}'.format(sub_id))
         if self.data:
             if not sub_id:  # get random sub
                 sub_id = random.choice(list(self.data.keys()))
 
             if sub_id not in self.cache:
                 self.read_subpair(sub_id)
-            return (sub_id, self.cache[sub_id].get_parallel_subs(random.randint(0,100), 20))
+            position = random.randint(0,100)
+            subs = self.cache[sub_id].get_parallel_subs(position, 20)
+            logger.info('id:{}, pos:{}'.format(
+                sub_id, position, subs))
+            return sub_id, subs
 
     def get_subs_to_align(self, sub_id, count=4):
         # import ipdb; ipdb.set_trace()
         if self.data:
             if sub_id not in self.cache:
                 self.read_subpair(sub_id)
-            subs = [self.cache[sub_id].subs[0].sub[:count], # First sub, begin
-                    self.cache[sub_id].subs[1].sub[:count], # Second sub, begin,
-                    self.cache[sub_id].subs[0].sub[-1-count:-1], # First sub, end
-                    self.cache[sub_id].subs[1].sub[-1-count:-1], # Second sub, end
+            subs = [self.cache[sub_id].subs[0].sub[:count],  # First sub, begin
+                    self.cache[sub_id].subs[1].sub[:count],  # Second sub, begin,
+                    self.cache[sub_id].subs[0].sub[-1-count:-1],  # First sub, end
+                    self.cache[sub_id].subs[1].sub[-1-count:-1],  # Second sub, end
                     ]
             return subs
 

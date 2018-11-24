@@ -24,9 +24,11 @@ class SubsLogStream(io.StringIO):
 
 class AppBox(urwid.Frame):
     def __init__(self, sub_id=None):
+        # import ipdb; ipdb.set_trace()
+        self.sub_id = sub_id
+        self.random = False if sub_id else True
         self.state = 'show'
 
-        # import ipdb; ipdb.set_trace()
         self.title = urwid.Text('Title', align='left')
         self.left_text = urwid.Text('', align='left')
         self.right_text = urwid.Text('', align='left')
@@ -38,12 +40,12 @@ class AppBox(urwid.Frame):
 
         urwid.connect_signal(self.app_but.original_widget, 'click', self.button_on_click)
 
-        self.sub_id = sub_id
         self.subs = []
         self.get_subs()
 
     def get_subs(self):
-        self.sub_id, self.subs = db.get_subs(self.sub_id)
+        sub_id = None if self.random else self.sub_id
+        self.sub_id, self.subs = db.get_subs(sub_id)
         if self.subs:
             text = '\n'.join([s.content for s in self.subs[0]])
             self.left_text.set_text(text)
@@ -66,6 +68,8 @@ class AppBox(urwid.Frame):
             self.app_but.original_widget.set_label('Show')
             self.state = 'show'
 
+    def get_sub_id(self):
+        return self.sub_id
 
 class SearchBox(urwid.Frame):
     def __init__(self):
@@ -97,6 +101,9 @@ class SearchBox(urwid.Frame):
             db.download(self.url.get_edit_text(), self.lang1.get_edit_text(), self.lang2.get_edit_text())
         else:
             return self.focus.keypress(size, key)
+
+    def get_sub_id(self):
+        return None
 
 
 class SubsListBox(urwid.Frame):
@@ -139,6 +146,9 @@ class SubsListBox(urwid.Frame):
         for i, e in enumerate(self.subs.body):
             if e.get_state():
                 db.delete(self.subs_list[i][0])
+
+    def get_sub_id(self):
+        return None
 
 class SubsAlignBox(urwid.Frame):
     def __init__(self, top_frame, sub_id):
@@ -244,12 +254,13 @@ class TopFrame(urwid.Frame):
         self.contents['body'] = (body, body.options())
 
     def set_align_mode(self, button):
-        sub_id = self.contents['body'][0].sub_id
-        body = SubsAlignBox(self, sub_id)
-        self.contents['body'] = (body, body.options())
+        sub_id = self.contents['body'][0].get_sub_id()
+        if sub_id:
+            body = SubsAlignBox(self, sub_id)
+            self.contents['body'] = (body, body.options())
 
 
-logging.basicConfig()
+logging.basicConfig(filename='pairsubs.log', filemode='w', level=logging.INFO)
 logging.getLogger().setLevel(logging.INFO)
 
 db = pairsubs.SubDb()
