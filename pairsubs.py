@@ -136,12 +136,14 @@ class Opensubtitles:
             sub (dict): subtitles info in Opensubtitles API format
         '''
         logger.info("Opensubtitles: search...")
-        imdb = re.search('\d+', imdbid)[0]
-        result = self.proxy.SearchSubtitles(
-                self.token,
-                [{'imdbid': str(imdb), 'sublanguageid': lang}],
-                [100])
-        return self._select_sub_(result['data'])
+        m = re.search('\d+', imdbid)
+        if m:
+            imdb = m[0]
+            result = self.proxy.SearchSubtitles(
+                    self.token,
+                    [{'imdbid': str(imdb), 'sublanguageid': lang}],
+                    [100])
+            return self._select_sub_(result['data'])
 
     @retry
     def download_sub(self, sub):

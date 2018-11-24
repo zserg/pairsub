@@ -20,6 +20,7 @@ class SubsLogStream(io.StringIO):
             message (str): message top print
         '''
         self.box.set_text(self.box.text+message)
+        loop.draw_screen()
 
 
 class AppBox(urwid.Frame):
@@ -98,7 +99,11 @@ class SearchBox(urwid.Frame):
         elif key == 'enter' and self.focus_position == 'footer':
             # import ipdb; ipdb.set_trace()
             self.log.set_text('')
-            db.download(self.url.get_edit_text(), self.lang1.get_edit_text(), self.lang2.get_edit_text())
+            url = self.url.get_edit_text()
+            lang1 = self.lang1.get_edit_text()
+            lang2 = self.lang2.get_edit_text()
+            if url and lang1 and lang2:
+                db.download(url, lang1, lang2)
         else:
             return self.focus.keypress(size, key)
 
@@ -131,7 +136,7 @@ class SubsListBox(urwid.Frame):
             self.set_focus_path(['body', 0])
         elif key == 'enter' and self.focus_position == 'footer':
             self.delete_subs()
-            self.__init__()
+            self.__init__(self.top_frame)
             self.focus_position = 'body'
             self.focus_position = 'footer'
         elif key == 'enter' and self.focus_position == 'body':
