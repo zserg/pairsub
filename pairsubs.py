@@ -15,13 +15,13 @@ import json
 import codecs
 import re
 from time import sleep
+import pairsubs_gui
 
 import logging
 from logging import NullHandler
 
 logger = logging.getLogger(__name__)
 logger.addHandler(NullHandler())
-
 
 COLUMN_WIDTH = 40
 OPENSUBTUTLES_MAX_RETRY = 3
@@ -70,7 +70,6 @@ class Opensubtitles:
 
     def __init__(self):
         '''Init xml-rpc proxy'''
-        # import ipdb; ipdb.set_trace()
         proxy_url = os.environ.get('http_proxy', '')
         if proxy_url:
             parsed = urlparse(proxy_url).netloc
@@ -495,7 +494,6 @@ class SubDb():
             self.data[sub_id] = sub_data
 
     def download(self, imdbid, lang1, lang2):
-        # import ipdb; ipdb.set_trace()
         sub_pair, log = SubPair.download(imdbid, lang1, lang2)
         if sub_pair:
             self.add_subpair(sub_pair)
@@ -545,7 +543,7 @@ class SubDb():
         return self.cache[sub_id]
 
     def get_subs(self, sub_id=None):
-        logger.info('get_subs id={}'.format(sub_id))
+        # logger.info('get_subs id={}'.format(sub_id))
         if self.data:
             if not sub_id:  # get random sub
                 sub_id = random.choice(list(self.data.keys()))
@@ -554,12 +552,11 @@ class SubDb():
                 self.read_subpair(sub_id)
             position = random.randint(0,100)
             subs = self.cache[sub_id].get_parallel_subs(position, 20)
-            logger.info('id:{}, pos:{}'.format(
-                sub_id, position, subs))
+            # logger.info('id:{}, pos:{}'.format(
+            #    sub_id, position, subs))
             return sub_id, subs
 
     def get_subs_to_align(self, sub_id, count=4):
-        # import ipdb; ipdb.set_trace()
         if self.data:
             if sub_id not in self.cache:
                 self.read_subpair(sub_id)
@@ -603,5 +600,15 @@ class SubDb():
 
 
 if __name__ == '__main__':
+    # import ipdb; ipdb.set_trace()
+    logger.setLevel(logging.INFO)
+
     db = SubDb()
-    db.learn()
+    app = pairsubs_gui.App(db)
+
+    log_box = app.get_search_box()
+    loop = app.get_loop()
+    log_handler = logging.StreamHandler(pairsubs_gui.SubsLogStream(log_box, loop))
+    logger.addHandler(log_handler)
+
+    app.run()

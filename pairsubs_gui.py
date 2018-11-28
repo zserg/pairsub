@@ -1,18 +1,18 @@
 import urwid
 import io
-import pairsubs
-import logging
 
 
 class SubsLogStream(io.StringIO):
     ''' Stream for logging into a Text box'''
 
-    def __init__(self, box):
+    def __init__(self, box, loop):
         '''
         Args:
             box (urwid.Text): text widget to print into
+            loop (urwid.MainLoop): main loop to redraw
         '''
         self.box = box
+        self.loop = loop
 
     def write(self, message):
         '''
@@ -20,12 +20,13 @@ class SubsLogStream(io.StringIO):
             message (str): message top print
         '''
         self.box.set_text(self.box.text+message)
-        loop.draw_screen()
+        self.loop.draw_screen()
 
 
 class AppBox(urwid.Frame):
-    def __init__(self, sub_id=None):
+    def __init__(self, db, sub_id=None):
         # import ipdb; ipdb.set_trace()
+        self.db = db
         self.sub_id = sub_id
         self.random = False if sub_id else True
         self.state = 'show'
@@ -46,15 +47,15 @@ class AppBox(urwid.Frame):
 
     def get_subs(self):
         sub_id = None if self.random else self.sub_id
-        self.sub_id, self.subs = db.get_subs(sub_id)
+        self.sub_id, self.subs = self.db.get_subs(sub_id)
         if self.subs:
             text = '\n'.join([s.content for s in self.subs[0]])
             self.left_text.set_text(text)
             self.right_text.set_text('')
             sub_title = '{} ({}, {})'.format(
-                    db.data[self.sub_id]['subs'][0]['MovieName'],
-                    db.data[self.sub_id]['subs'][0]['SubLanguageID'],
-                    db.data[self.sub_id]['subs'][1]['SubLanguageID']
+                    self.db.data[self.sub_id]['subs'][0]['MovieName'],
+                    self.db.data[self.sub_id]['subs'][0]['SubLanguageID'],
+                    self.db.data[self.sub_id]['subs'][1]['SubLanguageID']
                     )
             self.title.set_text(sub_title)
 
@@ -73,8 +74,9 @@ class AppBox(urwid.Frame):
         return self.sub_id
 
 class SearchBox(urwid.Frame):
-    def __init__(self):
+    def __init__(self, db):
 
+        self.db = db
         self.url = urwid.Edit('URL:  ')
         self.lang1 = urwid.Edit('Lang #1:  ')
         self.lang2 = urwid.Edit('Lang #2:  ')
@@ -97,13 +99,12 @@ class SearchBox(urwid.Frame):
         elif key == 'up' and self.focus_position == 'footer':
             self.set_focus_path(['body', 2])
         elif key == 'enter' and self.focus_position == 'footer':
-            # import ipdb; ipdb.set_trace()
             self.log.set_text('')
             url = self.url.get_edit_text()
             lang1 = self.lang1.get_edit_text()
             lang2 = self.lang2.get_edit_text()
             if url and lang1 and lang2:
-                db.download(url, lang1, lang2)
+                self.db.download(url, lang1, lang2)
         else:
             return self.focus.keypress(size, key)
 
@@ -112,9 +113,10 @@ class SearchBox(urwid.Frame):
 
 
 class SubsListBox(urwid.Frame):
-    def __init__(self, top_frame):
+    def __init__(self, db, top_frame):
+        self.db = db
         self.top_frame = top_frame
-        self.subs_list = list(db.data.items())
+        self.subs_list = list(self.db.data.items())
         s = [urwid.CheckBox(self.sub_format(x[1])) for x in self.subs_list]
         self.subs = urwid.ListBox(urwid.SimpleFocusListWalker(s))
         self.app_box = urwid.LineBox(self.subs)
@@ -129,7 +131,6 @@ class SubsListBox(urwid.Frame):
                 )
 
     def keypress(self, size, key):
-        # import ipdb; ipdb.set_trace()
         if key == 'down' and self.get_focus_path() == ['body', len(self.subs.body)-1]:
             self.focus_position = 'footer'
         elif key == 'up' and self.focus_position == 'footer' and self.subs.body:
@@ -140,7 +141,6 @@ class SubsListBox(urwid.Frame):
             self.focus_position = 'body'
             self.focus_position = 'footer'
         elif key == 'enter' and self.focus_position == 'body':
-            # import ipdb; ipdb.set_trace()
             idx = self.get_focus_path()[1]  # ['body', 0]
             sub_id = self.subs_list[idx][0]
             self.top_frame.set_show_mode(None, sub_id)
@@ -150,18 +150,19 @@ class SubsListBox(urwid.Frame):
     def delete_subs(self):
         for i, e in enumerate(self.subs.body):
             if e.get_state():
-                db.delete(self.subs_list[i][0])
+                self.db.delete(self.subs_list[i][0])
 
     def get_sub_id(self):
         return None
 
+
 class SubsAlignBox(urwid.Frame):
-    def __init__(self, top_frame, sub_id):
+    def __init__(self, db, top_frame, sub_id):
+        self.db = db
         self.top_frame = top_frame
         self.subs_id = sub_id
-        self.subs = db.get_subs_to_align(sub_id, 8)
+        self.subs = self.db.get_subs_to_align(sub_id, 8)
 
-        # import ipdb; ipdb.set_trace()
         bg_lt = []
         bg_rt = []
         bg_lb = []
@@ -204,11 +205,6 @@ class SubsAlignBox(urwid.Frame):
         else:
             return self.focus.keypress(size, key)
 
-    def delete_subs(self):
-        for i, e in enumerate(self.subs.body):
-            if e.get_state():
-                db.delete(self.subs_list[i][0])
-
 
 class CtrlButtons(urwid.Columns):
     def __init__(self):
@@ -225,11 +221,12 @@ class CtrlButtons(urwid.Columns):
 
 
 class TopFrame(urwid.Frame):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, db, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.search_box = SearchBox()
-        self.app_box = AppBox()
+        self.db = db
+        self.search_box = SearchBox(self.db)
+        # self.app_box = AppBox()
 
         urwid.connect_signal(self.contents['footer'][0].search_but, 'click', self.set_search_mode)
         urwid.connect_signal(self.contents['footer'][0].home_but, 'click', self.set_show_mode)
@@ -250,34 +247,35 @@ class TopFrame(urwid.Frame):
         self.contents['body'] = (body, body.options())
 
     def set_show_mode(self, button, sub_id=None):
-        body = AppBox(sub_id)
+        body = AppBox(self.db, sub_id)
         self.contents['body'] = (body, body.options())
         self.focus_position = 'body'
 
     def set_list_mode(self, button):
-        body = SubsListBox(self)
+        body = SubsListBox(self.db, self)
         self.contents['body'] = (body, body.options())
 
     def set_align_mode(self, button):
         sub_id = self.contents['body'][0].get_sub_id()
         if sub_id:
-            body = SubsAlignBox(self, sub_id)
+            body = SubsAlignBox(self.db, self, sub_id)
             self.contents['body'] = (body, body.options())
 
 
-logging.basicConfig(filename='pairsubs.log', filemode='w', level=logging.INFO)
-logging.getLogger().setLevel(logging.INFO)
+class App:
+    def __init__(self, db):
+        self.db = db
+        self.top = TopFrame(self.db, AppBox(self.db), footer=CtrlButtons(), focus_part='footer')
+        self.loop = urwid.MainLoop(self.top)
 
-db = pairsubs.SubDb()
-app = TopFrame(AppBox(), footer=CtrlButtons(), focus_part='footer')
+    def get_search_box(self):
+        return self.top.search_box.log
 
-log_box = app.search_box.log
-log_handler = logging.StreamHandler(SubsLogStream(log_box))
-logging.getLogger('pairsubs').addHandler(log_handler)
-logging.getLogger('pairsubs').propagate = False
+    def get_loop(self):
+        return self.loop
 
-loop = urwid.MainLoop(app)
-loop.run()
+    def run(self):
+        self.loop.run()
 
 
 
