@@ -135,7 +135,7 @@ class Opensubtitles:
             sub (dict): subtitles info in Opensubtitles API format
         '''
         logger.info("Opensubtitles: search...")
-        m = re.search('\d+', imdbid)
+        m = re.search(r'\d+', imdbid)
         if m:
             imdb = m[0]
             result = self.proxy.SearchSubtitles(
@@ -275,43 +275,32 @@ class SubPair:
 
     @classmethod
     def download(cls, imdbid, lang1, lang2, enc1=None, enc2=None):
-        log = ""
         logger.info("Start subtitles download: {} ({}, {})".format(
                                            imdbid, lang1, lang2))
-        state = "Login into Opensubtitles..."
-        logger.info(state)
-        log += (state+"\n")
+        logger.info("Login into Opensubtitles...")
         osub = Opensubtitles()
         osub.login()
 
         subs = []
         for lang, enc in [(lang1, enc1), (lang2, enc2)]:
-            state = "Search {}...".format(lang)
-            logger.info(state)
-            log += (state+"\n")
+            logger.info("Search {}...".format(lang))
             sub = osub.search_sub(imdbid, lang)
             if sub:
-                state = "Download {}...".format(lang)
-                logger.info(state)
-                log += (state+"\n")
+                logger.info("Download {}...".format(lang))
                 sub_b = osub.download_sub(sub)
                 s = Subs(sub_b, sub)
                 if s.sub:
                     subs.append(s)
                 else:
-                    state = "Failed the subtitles parsing".format(lang)
-                    logger.info(state)
-                    log += (state+"\n")
-                    return None, log
+                    logger.info("Failed the subtitles parsing".format(lang))
+                    return None
             else:
-                state = "Subtitles #{} aren't found".format(lang)
-                logger.info(state)
-                log += (state+"\n")
+                logger.info("Subtitles #{} aren't found".format(lang))
                 osub.logout()
-                return None, log
+                return None
 
         osub.logout()
-        return cls(subs), log
+        return cls(subs)
 
     @classmethod
     def read(cls, info):
@@ -494,7 +483,7 @@ class SubDb():
             self.data[sub_id] = sub_data
 
     def download(self, imdbid, lang1, lang2):
-        sub_pair, log = SubPair.download(imdbid, lang1, lang2)
+        sub_pair = SubPair.download(imdbid, lang1, lang2)
         if sub_pair:
             self.add_subpair(sub_pair)
             self.add_to_cache(sub_pair)
