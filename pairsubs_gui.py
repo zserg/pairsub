@@ -161,7 +161,7 @@ class SubsAlignBox(urwid.Frame):
         self.db = db
         self.top_frame = top_frame
         self.subs_id = sub_id
-        self.subs = self.db.get_subs_to_align(sub_id, 8)
+        self.subs = self.db.get_subs_to_align(sub_id, 12)
 
         bg_lt = []
         bg_rt = []
@@ -180,7 +180,7 @@ class SubsAlignBox(urwid.Frame):
         c_top = urwid.Columns([left_top_box, right_top_box])
         c_bot = urwid.Columns([left_bot_box, right_bot_box])
 
-        p = urwid.Pile([c_top, c_bot])
+        p = urwid.Pile([c_top, urwid.Filler(urwid.Divider('-'), 'middle'), c_bot])
         self.app_box = urwid.LineBox(p)
         self.app_but = urwid.Padding(urwid.Button('Align'), 'center', 10)
         super().__init__(self.app_box, footer=self.app_but, focus_part='body')
@@ -194,9 +194,9 @@ class SubsAlignBox(urwid.Frame):
 
     def keypress(self, size, key):
         # import ipdb; ipdb.set_trace()
-        if key == 'down' and self.get_focus_path() == ['body', 1, 0, len(self.subs[0])-1]:
+        if key == 'down' and self.get_focus_path() == ['body', 2, 0, len(self.subs[0])-1]:
             self.focus_position = 'footer'
-        elif key == 'down' and self.get_focus_path() == ['body', 1, 1, len(self.subs[1])-1]:
+        elif key == 'down' and self.get_focus_path() == ['body', 2, 1, len(self.subs[1])-1]:
             self.focus_position = 'footer'
         elif key == 'up' and self.focus_position == 'footer':
             self.focus_position = 'body'
