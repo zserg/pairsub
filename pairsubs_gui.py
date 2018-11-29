@@ -167,15 +167,15 @@ class SubsAlignBox(urwid.Frame):
         bg_rt = []
         bg_lb = []
         bg_rb = []
-        left_top = [urwid.RadioButton(bg_lt, x.content) for x in self.subs[0]]
-        right_top = [urwid.RadioButton(bg_rt, x.content) for x in self.subs[1]]
-        left_bot = [urwid.RadioButton(bg_lb, x.content) for x in self.subs[2]]
-        right_bot = [urwid.RadioButton(bg_rb, x.content) for x in self.subs[3]]
+        self.left_top = [urwid.RadioButton(bg_lt, x.content) for x in self.subs[0]]
+        self.right_top = [urwid.RadioButton(bg_rt, x.content) for x in self.subs[1]]
+        self.left_bot = [urwid.RadioButton(bg_lb, x.content) for x in self.subs[2]]
+        self.right_bot = [urwid.RadioButton(bg_rb, x.content) for x in self.subs[3]]
 
-        left_top_box = urwid.ListBox(urwid.SimpleFocusListWalker(left_top))
-        right_top_box = urwid.ListBox(urwid.SimpleFocusListWalker(right_top))
-        left_bot_box = urwid.ListBox(urwid.SimpleFocusListWalker(left_bot))
-        right_bot_box = urwid.ListBox(urwid.SimpleFocusListWalker(right_bot))
+        left_top_box = urwid.ListBox(urwid.SimpleFocusListWalker(self.left_top))
+        right_top_box = urwid.ListBox(urwid.SimpleFocusListWalker(self.right_top))
+        left_bot_box = urwid.ListBox(urwid.SimpleFocusListWalker(self.left_bot))
+        right_bot_box = urwid.ListBox(urwid.SimpleFocusListWalker(self.right_bot))
 
         c_top = urwid.Columns([left_top_box, right_top_box])
         c_bot = urwid.Columns([left_bot_box, right_bot_box])
@@ -201,9 +201,24 @@ class SubsAlignBox(urwid.Frame):
         elif key == 'up' and self.focus_position == 'footer':
             self.focus_position = 'body'
         elif key == 'enter' and self.focus_position == 'footer':
+            # import ipdb; ipdb.set_trace()
+            self.db.align_subs(self.subs_id,
+                               self.subs[0][self._find_rbutton(self.left_top)].index,
+                               self.subs[1][self._find_rbutton(self.right_top)].index,
+                               self.subs[2][self._find_rbutton(self.left_bot)].index,
+                               self.subs[3][self._find_rbutton(self.right_bot)].index)
             self.top_frame.set_show_mode(None, self.subs_id)
         else:
             return self.focus.keypress(size, key)
+
+    def _find_rbutton(self, a):
+        # import ipdb; ipdb.set_trace()
+        for e in enumerate(a):
+            if e[1].state is True:
+                return e[0]
+
+    def get_sub_id(self):
+        return None
 
 
 class CtrlButtons(urwid.Columns):
