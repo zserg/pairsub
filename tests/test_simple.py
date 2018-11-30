@@ -57,6 +57,7 @@ Sentence #6
 """
 ]
 
+
 class mockproxy():
     '''
     xmlrpc.client.ServerProxy mock class
@@ -65,7 +66,7 @@ class mockproxy():
         pass
 
     def LogIn(self, login, password, lang, agent):
-        return {'token':"42"}
+        return {'token': "42"}
 
     def SearchSubtitles(self, token, params, count):
         if not token:
@@ -74,7 +75,7 @@ class mockproxy():
         imdbid = int(params[0]['imdbid'])
         lang = params[0]['sublanguageid']
         cnt = count[0]
-        return {'status':'200 OK',
+        return {'status': '200 OK',
                 'data': mocksubs,
                 'seconds': 0.1
                 }
@@ -90,7 +91,7 @@ class mockproxy():
             subs_data.append(b64)
 
         #data_zipped = base64.b64decode(result['data'][0]['data'])
-        return {'data':[{'data':subs_data[0]}]}
+        return {'data': [{'data': subs_data[0]}]}
 
 
 
@@ -101,6 +102,7 @@ def test_login(monkeypatch):
     os.login()
     assert os.token == '42'
 
+
 def test_search_sub(monkeypatch):
     monkeypatch.setattr(xmlrpc.client, 'ServerProxy', mockproxy)
 
@@ -109,18 +111,18 @@ def test_search_sub(monkeypatch):
     sub = os.search_sub("https://www.imdb.com/title/tt1853728/?ref_=nv_sr_1", "rus")
     assert sub == mocksubs[1]
 
+
 def test_download_sub(monkeypatch):
     monkeypatch.setattr(xmlrpc.client, 'ServerProxy', mockproxy)
 
     os = Opensubtitles()
     os.login()
-    sub = os.download_sub({'IDSubtitleFile':12})
+    sub = os.download_sub({'IDSubtitleFile': 12})
     assert sub == mocksrt[0].encode()
 
 # def test_read_sub(monkeypatch):
 #     sp = SubPair.read('file1.srt', 'file2.srt')
 #     assert len(sp.subs[0]) == 5
-
 
 
 class TestSubs:
@@ -130,7 +132,7 @@ class TestSubs:
         sub_info = mocksubsinfo[0]
         s = Subs(sub_data, sub_info)
         assert s.sub == list(srt.parse(mocksrt[0]))
-        #import ipdb; ipdb.set_trace()
+        # import ipdb; ipdb.set_trace()
         assert s.sub_info == sub_info
 
     def test_get_sub(self):
@@ -142,26 +144,26 @@ class TestSubs:
         assert s.get_subs(start, end) == list(srt.parse(mocksrt[0]))[1:3]
 
 
-
-
 def gen_sub_info(sub_id, idx):
-    return {'MovieName':'Name_{}'.format(sub_id),
-            'SubEncoding':'utf-8',
-            'SubFileName':'File_{}_{}'.format(sub_id,idx),
+    return {'MovieName': 'Name_{}'.format(sub_id),
+            'SubEncoding': 'utf-8',
+            'SubFileName': 'File_{}_{}'.format(sub_id, idx),
             'SubLanguageID': 'Lang_{}'.format(sub_id),
             'IDMovieImdb': 'imdb_{}'.format(sub_id),
             'IDSubtitleFile': 'fileid_{}_{}'.format(sub_id, idx)}
 
+
 def gen_sub_data(sub_id, idx, length, single_dur):
     subs = ''
-    for i in range(1,length+1):
+    for i in range(1, length+1):
         s = srt.Subtitle(
-                index = i,
-                start = timedelta(seconds=i*single_dur),
-                end = timedelta(seconds=(i+1)*single_dur/2),
-                content = 'ID={}, IDX={}, Sentence #{}'.format(sub_id, idx, i))
+                index=i,
+                start=timedelta(seconds=i*single_dur),
+                end=timedelta(seconds=(i+1)*single_dur/2),
+                content='ID={}, IDX={}, Sentence #{}'.format(sub_id, idx, i))
         subs += s.to_srt()
     return subs.encode('utf-8')
+
 
 def gen_subpair(sub_id):
     subs = []
@@ -189,7 +191,6 @@ class TestsDb:
         db = SubDb()
         db.data = dbdata
         return db
-
 
     def test_download(self, gen_db):
         imdb = 'some_imdb_url_012345_'

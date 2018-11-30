@@ -1,6 +1,8 @@
 import urwid
 import io
 
+SUBS_CNT_FOR_ALIGN = 12
+
 
 class SubsLogStream(io.StringIO):
     ''' Stream for logging into a Text box'''
@@ -72,6 +74,7 @@ class AppBox(urwid.Frame):
 
     def get_sub_id(self):
         return self.sub_id
+
 
 class SearchBox(urwid.Frame):
     def __init__(self, db):
@@ -161,7 +164,7 @@ class SubsAlignBox(urwid.Frame):
         self.db = db
         self.top_frame = top_frame
         self.subs_id = sub_id
-        self.subs = self.db.get_subs_to_align(sub_id, 12)
+        self.subs = self.db.get_subs_to_align(sub_id, SUBS_CNT_FOR_ALIGN)
 
         bg_lt = []
         bg_rt = []
