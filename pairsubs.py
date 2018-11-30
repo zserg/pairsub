@@ -164,21 +164,26 @@ class Opensubtitles:
 class Subs:
     '''
     Base class for subtitles
+    Args:
+        sub_data (bytes): subtitles in SRT format
+        sub_info (:obj:`dict`): subtitles information
+        decode (Boool): True if to decode subtitles as SubLanguageID defines
+    Attributes:
+        sub_info (:obj:`dict`): subtitles information
+        sub (:obj:`list` of :obj:`Subtitles`
     '''
 
     def __init__(self, sub_data, sub_info, decode=True):
-        '''
-        Args:
-            sub_data (bytes): subtitles in SRT format
-            sub_ingo (:obj:`dict`): subtitles information
-        '''
+        info_keys = ('SubLanguageID',
+                     'SubFileName',
+                     'SubEncoding',
+                     'MovieName',
+                     'IDMovieImdb',
+                     'IDSubtitleFile')
+
         self.sub_info = {}
-        self.sub_info['SubLanguageID'] = sub_info.get('SubLanguageID', None)
-        self.sub_info['SubFileName'] = sub_info.get('SubFileName', None)
-        self.sub_info['SubEncoding'] = sub_info.get('SubEncoding', None)
-        self.sub_info['MovieName'] = sub_info.get('MovieName', None)
-        self.sub_info['IDMovieImdb'] = sub_info.get('IDMovieImdb', None)
-        self.sub_info['IDSubtitleFile'] = sub_info.get('IDSubtitleFile', None)
+        for k in info_keys:
+            self.sub_info[k] = sub_info.get(k, None)
 
         # Decode bytes to Unicode string
         if decode:
@@ -188,7 +193,7 @@ class Subs:
             data_decoded = sub_data
 
         # Parse bytes into a list of Subtitles objects
-        self.sub = self._parse_subtitles_(data_decoded)
+        self.sub = self._parse_subtitles(data_decoded)
 
     def __repr__(self):
         return "Subs: [{}] [{}] [{}]".format(self.sub_info['MovieName'],
@@ -212,6 +217,7 @@ class Subs:
             return UnicodeDammit(data).unicode_markup
 
     def save(self, name=None):
+        ''' Save subtitles file'''
         data = srt.compose(self.sub)
         file_name = name if name else self.sub_info['SubFileName']
         with open(os.path.join(FILES_DIR, file_name), 'w') as f:
@@ -219,6 +225,13 @@ class Subs:
 
     @classmethod
     def read(cls, sub_info):
+        '''
+        Read sibtitles from file.
+        Args:
+            sub_info (:obj:`dict`): subtitles information
+        Returns:
+            :obj:`Subs`
+        '''
         name = os.path.join(FILES_DIR, sub_info['SubFileName'])
         with open(name, 'r') as f:
             data = f.read()
@@ -229,8 +242,8 @@ class Subs:
         Return list of <str> from subtitles
         whose timedelta is between start and stop.
         Args:
-            start (float): start time of subtitles
-            end (float): end time of subtitles
+            start (float): start time of subtitles (seconds)
+            end (float): end time of subtitles (seconds)
         Returns:
             :obj:`list` of :obj:`Subtitles`
         '''
@@ -241,13 +254,20 @@ class Subs:
                 subs.append(s)
         return subs
 
-    def _parse_subtitles_(self, data):
+    def _parse_subtitles(self, data):
+        '''
+        Parse subtitles from str.
+        Args:
+            data (str): subtitles data
+        Returns:
+            :obj:`list` of :obj:`Subtitles`
+        '''
         try:
             sub = list(srt.parse(data))
-            return sub
         except (ValueError, SRTParseError) as e:
             logger.error("Subtitles parsing failed: {}".format(e))
-            return []
+            sub = []
+        return sub
 
     def seconds_to_timedelta(self, seconds):
         s = int(seconds)
@@ -262,6 +282,10 @@ class SubPair:
         '''
         Args:
             subs: list of <Subs> objects
+            first_start (float):
+            first_end (float):
+            second_start (float):
+            second_end (float):
         '''
         self.subs = subs
         self.first_start = 0
@@ -438,14 +462,38 @@ class SubPair:
 
 
 class SubDb():
-    """ Subtitles Database Class """
+    ''' Subtitles Database Class
+
+    Attributes:
+        data: (:`obj`:`dict` of :`obj`:`dict`) SubPairs info dictionary with fields:
+            - sub_id (str): subpair_info (:obj:`dict`)
+
+            subpair_info (:`obj`:`dict`) : SubPairs info dictionary with fields:
+                - 'first_start': (float)
+                - 'first_end': (float)
+                - 'second_start': (float)
+                - 'second_end': (float)
+                - 'subs': sub_info (:`obj`:`list` of :`obj`:`dict`)
+
+                sub_info (:`obj`:`dict`) : sub info dictionary with fields:
+                    - 'SubLanguageID': (str)
+                    - 'SubFileName' : (str)
+                    - 'SubEncoding' : (str)
+                    - 'MovieName' :(str)
+                    - 'IDMovieImdb' : (str)
+                    - 'IDSubtitleFile' :(str)
+
+        cache: (:`obj`:`dict` of :`obj`:`SubPair`) SubPairs dictionary with fields:
+            - sub_id (str): (:`obj`:`SubPair`)
+    '''
+
     def __init__(self):
         self.data = self.load_data()
         self.cache = {}
 
     def load_data(self):
         '''
-        Init cache
+        Load subtitles info data
         '''
         # verify that the application directory (~/.pairsubs) exists,
         #   else create it
@@ -483,6 +531,16 @@ class SubDb():
             self.data[sub_id] = sub_data
 
     def download(self, imdbid, lang1, lang2):
+        '''
+        Download subtitles from Opensubtitles.org.
+        Args:
+            imdbid (str): INDB id string (or URL)
+            lang1 (str): first language
+            lang2 (str): second language
+        Returns:
+            :`obj`:`SubPair`
+        '''
+
         sub_pair = SubPair.download(imdbid, lang1, lang2)
         if sub_pair:
             self.add_subpair(sub_pair)
@@ -513,24 +571,6 @@ class SubDb():
             sub_pair = SubPair.read(sub_info)
             self.add_to_cache(sub_pair)
 
-    def print_list(self):
-        for sp in self.data.items():
-            print('{}: {} [{}-{}]'.format(
-                sp[0],  # sub_id
-                sp[1]['subs'][0]['MovieName'],
-                sp[1]['subs'][0]['SubLanguageID'],
-                sp[1]['subs'][1]['SubLanguageID']))
-
-    def learn(self, sub_id=None):
-        if not sub_id:  # get random sub
-            sub_id = random.choice(list(self.data.keys()))
-
-        if sub_id not in self.cache:
-            self.read_subpair(sub_id)
-        self.cache[sub_id].learn_pair(20)
-
-        return self.cache[sub_id]
-
     def get_subs(self, sub_id=None):
         # logger.info('get_subs id={}'.format(sub_id))
         if self.data:
@@ -539,10 +579,9 @@ class SubDb():
 
             if sub_id not in self.cache:
                 self.read_subpair(sub_id)
-            position = random.randint(0,100)
+            position = random.randint(0, 100)
+            # import ipdb; ipdb.set_trace()
             subs = self.cache[sub_id].get_parallel_subs(position, 20)
-            # logger.info('id:{}, pos:{}'.format(
-            #    sub_id, position, subs))
             return sub_id, subs
 
     def get_subs_to_align(self, sub_id, count=4):
@@ -573,12 +612,6 @@ class SubDb():
             pass
 
         self.write_db()
-
-    def print_for_align(self, sub_id, count=4):
-        if sub_id not in self.cache:
-            self.read_subpair(sub_id)
-        self.cache[sub_id].print_for_align(count)
-        return self.cache[sub_id]
 
     def align_subs(self, sub_id, left_start, right_start, left_end, right_end):
         if sub_id not in self.cache:
