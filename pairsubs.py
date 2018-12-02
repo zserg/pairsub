@@ -5,8 +5,6 @@ import zlib
 import srt
 from srt import SRTParseError
 from bs4 import UnicodeDammit
-import textwrap
-import itertools
 from datetime import timedelta
 from urllib.parse import urlparse
 import random
@@ -62,14 +60,11 @@ class ProxiedTransport(xmlrpc.client.Transport):
 
 
 class Opensubtitles:
-    '''
-    Class for opensuntitles.org access
-    '''
-
+    """Class for opensuntitles.org access."""
     user_agent = "OS Test User Agent"
 
     def __init__(self):
-        '''Init xml-rpc proxy'''
+        """Init xml-rpc proxy."""
         proxy_url = os.environ.get('http_proxy', '')
         if proxy_url:
             parsed = urlparse(proxy_url).netloc
@@ -97,21 +92,19 @@ class Opensubtitles:
 
     @retry
     def logout(self):
-        ''' Logout from api.opensubtitles.org.'''
-
+        """Logout from api.opensubtitles.org."""
         logger.info("Opensubtitles: Logout...")
         self.proxy.LogOut(self.token)
 
     @retry
     def login(self):
-        ''' Login into api.opensubtitles.org.'''
-
+        """Login into api.opensubtitles.org."""
         logger.info("Opensubtitles: Login...")
         login = self.proxy.LogIn("", "", "en", "TemporaryUserAgent")
         self.token = login['token']
 
     def _select_sub_(self, subtitles):
-        ''' Select subtitles that have maximal downloads count'''
+        """Select subtitles that have maximal downloads count."""
         rate = 0
         top_sub = None
 
@@ -123,17 +116,17 @@ class Opensubtitles:
 
     @retry
     def search_sub(self, imdbid, lang):
-        '''
+        """
         Search the subtitles in Opensubtitles database
         by IMBD id and a language.
         Return dict as described in
         http://trac.opensubtitles.org/projects/opensubtitles/wiki/XMLRPC#SearchSubtitles
         Args:
-            imdbid (int): Movie's IMDB id
-            lang (str): Language of subtitles in ISO639 format (3-letter)
+            `imdbid` (int): Movie's IMDB id
+            `lang` (str): Language of subtitles in ISO639 format (3-letter)
         Returns:
-            sub (dict): subtitles info in Opensubtitles API format
-        '''
+            (dict): subtitles info in Opensubtitles API format
+        """
         logger.info("Opensubtitles: search...")
         m = re.search(r'\d+', imdbid)
         if m:
@@ -146,13 +139,13 @@ class Opensubtitles:
 
     @retry
     def download_sub(self, sub):
-        '''
+        """
         Download subtitles from subtitles.org.
         Args:
-            sub (dict): subtitles info in Opensubtitles API format
+            `sub` (dict): subtitles info in Opensubtitles API format
         Return:
-            data_bytes (bytes): downloaded subtitles
-        '''
+            `data_bytes` (bytes): downloaded subtitles
+        """
         logger.info("Opensubtitles: download...")
         result = self.proxy.DownloadSubtitles(self.token,
                                               [sub['IDSubtitleFile']])
@@ -162,16 +155,16 @@ class Opensubtitles:
 
 
 class Subs:
-    '''
+    """
     Base class for subtitles
     Args:
-        sub_data (bytes): subtitles in SRT format
-        sub_info (:obj:`dict`): subtitles information
-        decode (Boool): True if to decode subtitles as SubLanguageID defines
+        `sub_data` (bytes): subtitles in SRT format
+        `sub_info` (dict): subtitles information
+        `decode` (bool): True if to decode subtitles as SubLanguageID defines
     Attributes:
-        sub_info (:obj:`dict`): subtitles information
-        sub (:obj:`list` of :obj:`Subtitles`
-    '''
+        `sub_info` (dict): subtitles information
+        `sub` (list of `Subtitles`)
+    """
 
     def __init__(self, sub_data, sub_info, decode=True):
         info_keys = ('SubLanguageID',
@@ -202,11 +195,11 @@ class Subs:
 
     @staticmethod
     def sub_decode(data, encoding):
-        '''
+        """
         Args:
-            sub_data (bytes): subtitles in SRT format
-            encoding: (str): encoding
-        '''
+            `data` (bytes): subtitles in SRT format
+            `encoding`: (str): encoding
+        """
         if encoding:
             if data.startswith(codecs.BOM_UTF8):
                 enc = 'utf-8-sig'
@@ -217,7 +210,7 @@ class Subs:
             return UnicodeDammit(data).unicode_markup
 
     def save(self, name=None):
-        ''' Save subtitles file'''
+        """Save subtitles file."""
         data = srt.compose(self.sub)
         file_name = name if name else self.sub_info['SubFileName']
         with open(os.path.join(FILES_DIR, file_name), 'w') as f:
@@ -225,28 +218,27 @@ class Subs:
 
     @classmethod
     def read(cls, sub_info):
-        '''
+        """
         Read sibtitles from file.
         Args:
-            sub_info (:obj:`dict`): subtitles information
+            `sub_info` (dict): subtitles information
         Returns:
-            :obj:`Subs`
-        '''
+            `Subs` object
+        """
         name = os.path.join(FILES_DIR, sub_info['SubFileName'])
         with open(name, 'r') as f:
             data = f.read()
         return cls(data, sub_info, decode=False)
 
     def get_subs(self, start, end):
-        '''
-        Return list of <str> from subtitles
-        whose timedelta is between start and stop.
+        """
+        Returns list of subtitles whose timedelta is between start and stop.
         Args:
-            start (float): start time of subtitles (seconds)
-            end (float): end time of subtitles (seconds)
+            `start` (float): start time of subtitles (seconds)
+            `end` (float): end time of subtitles (seconds)
         Returns:
-            :obj:`list` of :obj:`Subtitles`
-        '''
+            list` of `Subtitles`
+        """
         subs = []
         for s in self.sub:
             if (s.start >= self.seconds_to_timedelta(start) and
@@ -255,13 +247,13 @@ class Subs:
         return subs
 
     def _parse_subtitles(self, data):
-        '''
+        """
         Parse subtitles from str.
         Args:
-            data (str): subtitles data
+            `data` (str): subtitles data
         Returns:
-            :obj:`list` of :obj:`Subtitles`
-        '''
+            list of `Subtitles`
+        """
         try:
             sub = list(srt.parse(data))
         except (ValueError, SRTParseError) as e:
@@ -276,17 +268,19 @@ class Subs:
 
 
 class SubPair:
-    ''' Pair of subtitles'''
-
+    """Pair of subtitles.
+        Attributes:
+            `subs`: tuple of two `Subs` objects
+            `first_start` (float):
+            `first_end` (float):
+            `second_start` (float):
+            `second_end` (float):
+    """
     def __init__(self, subs):
-        '''
+        """
         Args:
-            subs: list of <Subs> objects
-            first_start (float):
-            first_end (float):
-            second_start (float):
-            second_end (float):
-        '''
+            `subs`: tuple of two `Subs` objects
+        """
         self.subs = subs
         self.first_start = 0
         self.first_end = subs[0].sub[-1].start.total_seconds()
@@ -335,13 +329,13 @@ class SubPair:
         return cls(subs)
 
     def get_parallel_subs(self, start, length):
-        '''
+        """
         Args:
-            start (float): 0-100 percenrage of full length from the begin
-            lenght (int): duration in seconds
+            `start` (float): 0-100 percenrage of full length from the begin
+            `lenght` (int): duration in seconds
         Returns:
-            :obj:`tuple` of :obj:`list' of :obj:`Subtitles`
-        '''
+            list of to two lists of `Subtitles`
+        """
         first_len = self.first_end - self.first_start
         second_len = self.second_end - self.second_start
         coeff = first_len/second_len
@@ -359,64 +353,6 @@ class SubPair:
             par_subs.append(subs)
 
         return par_subs
-
-    def print_pair(self, offset=0, count=1,
-                   hide_left=None, hide_right=None, srt=False):
-
-        par_subs = self.get_parallel_subs(offset, count)
-        data = []
-        for subs in par_subs:
-            line = ""
-            for sub in subs:
-                line = "\n\n".join((line, sub.content))
-            res = []
-            for l in line.splitlines(keepends=True):
-                res += textwrap.wrap(l, COLUMN_WIDTH)
-            data.append(res)
-
-        out = itertools.zip_longest(*data,  fillvalue="")
-
-        for s in out:
-            s = list(s)
-            if hide_left:
-                s[0] = len(s[0])*" "
-
-            if hide_right:
-                s[1] = len(s[1])*" "
-
-            print("{}  |  {}".format(s[0]+(COLUMN_WIDTH-len(s[0]))*" ", s[1]))
-
-    def print_pair_random(self, count=30):
-        offset = random.random() * 100
-        self.print_pair(offset, count)
-
-    def print_for_align(self, count=4):
-        data = []
-        for sub in self.subs:
-            lines = srt.compose(sub.sub[:count])
-            res = []
-            for l in lines.splitlines():
-                res += textwrap.wrap(l, COLUMN_WIDTH)
-            data.append(res)
-
-        out = itertools.zip_longest(*data,  fillvalue="")
-
-        for s in out:
-            print("{}  |  {}".format(s[0]+(COLUMN_WIDTH-len(s[0]))*" ", s[1]))
-
-        print("----------------------------------------------------")
-        data = []
-        for sub in self.subs:
-            lines = srt.compose(sub.sub[-count:], reindex=False)
-            res = []
-            for l in lines.splitlines():
-                res += textwrap.wrap(l, COLUMN_WIDTH)
-            data.append(res)
-
-        out = itertools.zip_longest(*data,  fillvalue="")
-
-        for s in out:
-            print("{}  |  {}".format(s[0]+(COLUMN_WIDTH-len(s[0]))*" ", s[1]))
 
     def align_subs(self, left_start, right_start, left_end, right_end):
         self.first_start = self.subs[0].sub[left_start-1].start.total_seconds()
@@ -445,57 +381,38 @@ class SubPair:
                     self.subs[1].sub_info
                     ]}
 
-    def learn_pair(self, length):
-        while True:
-            offset = random.random() * 100
-            self.print_pair(offset, length, hide_right=True)
-            print()
-            data = input("Press 'Enter' (or 'q' + 'Enter' to quit)")
-            if data:
-                break
-            print()
-            self.print_pair(offset, length, hide_right=False)
-            data = input("Press 'Enter' (or 'q' + 'Enter' to quit) ")
-            if data:
-                break
-            print()
-
 
 class SubDb():
-    ''' Subtitles Database Class
+    """Subtitles Database Class.
 
     Attributes:
-        data: (:`obj`:`dict` of :`obj`:`dict`) SubPairs info dictionary with fields:
-            - sub_id (str): subpair_info (:obj:`dict`)
+        data: (dict of dicts) SubPairs info dictionary with fields:
+            - `sub_id` (str): subpair_info (:obj:`dict`)
 
             subpair_info (:`obj`:`dict`) : SubPairs info dictionary with fields:
-                - 'first_start': (float)
-                - 'first_end': (float)
-                - 'second_start': (float)
-                - 'second_end': (float)
-                - 'subs': sub_info (:`obj`:`list` of :`obj`:`dict`)
+                `first_start`: (float)
+                `first_end`: (float)
+                `second_start`: (float)
+                `second_end`: (float)
+                `subs`: sub_info (list of dicts)
 
-                sub_info (:`obj`:`dict`) : sub info dictionary with fields:
-                    - 'SubLanguageID': (str)
-                    - 'SubFileName' : (str)
-                    - 'SubEncoding' : (str)
-                    - 'MovieName' :(str)
-                    - 'IDMovieImdb' : (str)
-                    - 'IDSubtitleFile' :(str)
+                sub_info (dict) : sub info dictionary with fields:
+                    `SubLanguageID`: (str)
+                    `SubFileName` : (str)
+                    `SubEncoding` : (str)
+                    `MovieName` :(str)
+                    `IDMovieImdb` : (str)
+                    `IDSubtitleFile` :(str)
 
-        cache: (:`obj`:`dict` of :`obj`:`SubPair`) SubPairs dictionary with fields:
-            - sub_id (str): (:`obj`:`SubPair`)
-    '''
-
+        cache: (dict of {str: `SubPair`}) SubPairs dictionary with fields:
+    """
     def __init__(self):
         self.data = self.load_data()
         self.cache = {}
 
     def load_data(self):
-        '''
-        Load subtitles info data
-        '''
-        # verify that the application directory (~/.pairsubs) exists,
+        """Load subtitles info data."""
+        # verifies that the application directory (~/.pairsubs) exists,
         #   else create it
         if not os.path.exists(APP_DIR):
             os.makedirs(APP_DIR)
@@ -531,16 +448,15 @@ class SubDb():
             self.data[sub_id] = sub_data
 
     def download(self, imdbid, lang1, lang2):
-        '''
-        Download subtitles from Opensubtitles.org.
+        """
+        Downloads subtitles from Opensubtitles.org.
         Args:
-            imdbid (str): INDB id string (or URL)
-            lang1 (str): first language
-            lang2 (str): second language
+            `imdbid` (str): INDB id string (or URL)
+            `lang1` (str): first language
+            `lang2` (str): second language
         Returns:
-            :`obj`:`SubPair`
-        '''
-
+            `SubPair` object
+        """
         sub_pair = SubPair.download(imdbid, lang1, lang2)
         if sub_pair:
             self.add_subpair(sub_pair)
@@ -572,7 +488,6 @@ class SubDb():
             self.add_to_cache(sub_pair)
 
     def get_subs(self, sub_id=None):
-        # logger.info('get_subs id={}'.format(sub_id))
         if self.data:
             if not sub_id:  # get random sub
                 sub_id = random.choice(list(self.data.keys()))
@@ -580,23 +495,33 @@ class SubDb():
             if sub_id not in self.cache:
                 self.read_subpair(sub_id)
             position = random.randint(0, 100)
-            # import ipdb; ipdb.set_trace()
             subs = self.cache[sub_id].get_parallel_subs(position, 20)
             return sub_id, subs
 
     def get_subs_to_align(self, sub_id, count=4):
+        """
+        Get subtittles for manual alignment.
+        To align you need several subtitles from the begin and the end
+        of each subtitle file.
+        Args:
+            `sub_id` (str): SubPair id
+            `count` (int): number of subtitles from the begin and the end
+        Returns:
+            `subs` (tuple): tuple of 4 lists of `Subtitles`
+                    ([`first_begin`], [`second_begin`], [`first_end`], [`second_end`])
+        """
         if self.data:
             if sub_id not in self.cache:
                 self.read_subpair(sub_id)
-            subs = [self.cache[sub_id].subs[0].sub[:count],  # First sub, begin
+            subs = (self.cache[sub_id].subs[0].sub[:count],  # First sub, begin
                     self.cache[sub_id].subs[1].sub[:count],  # Second sub, begin,
                     self.cache[sub_id].subs[0].sub[-1-count:-1],  # First sub, end
                     self.cache[sub_id].subs[1].sub[-1-count:-1],  # Second sub, end
-                    ]
+                    )
             return subs
 
     def delete(self, sub_id):
-        # remove subtitles files
+        """Removes subtitles files."""
         for s in self.data[sub_id]['subs']:
             filename = os.path.join(FILES_DIR, s['SubFileName'])
             try:

@@ -5,27 +5,23 @@ SUBS_CNT_FOR_ALIGN = 12
 
 
 class SubsLogStream(io.StringIO):
-    ''' Stream for logging into a Text box'''
-
+    """Stream for logging into a Text box.
+        Attributes:
+            `box` (`urwid.Text`): text widget to print into
+            `loop` (`urwid.MainLoop`): main loop to redraw
+        """
     def __init__(self, box, loop):
-        '''
-        Args:
-            box (urwid.Text): text widget to print into
-            loop (urwid.MainLoop): main loop to redraw
-        '''
         self.box = box
         self.loop = loop
 
     def write(self, message):
-        '''
-        Args:
-            message (str): message top print
-        '''
+        """Writes message into Text box."""
         self.box.set_text(self.box.text+message)
         self.loop.draw_screen()
 
 
 class AppBox(urwid.Frame):
+    """Frame to show subtitles text."""
     def __init__(self, db, sub_id=None):
         # import ipdb; ipdb.set_trace()
         self.db = db
@@ -77,8 +73,8 @@ class AppBox(urwid.Frame):
 
 
 class SearchBox(urwid.Frame):
+    """Frame to search subtitles."""
     def __init__(self, db):
-
         self.db = db
         self.url = urwid.Edit('URL:  ')
         self.lang1 = urwid.Edit('Lang #1:  ')
@@ -116,6 +112,7 @@ class SearchBox(urwid.Frame):
 
 
 class SubsListBox(urwid.Frame):
+    """Frame to show a list of subtitles."""
     def __init__(self, db, top_frame):
         self.db = db
         self.top_frame = top_frame
@@ -160,6 +157,7 @@ class SubsListBox(urwid.Frame):
 
 
 class SubsAlignBox(urwid.Frame):
+    """Frame to align subtitles."""
     def __init__(self, db, top_frame, sub_id):
         self.db = db
         self.top_frame = top_frame
@@ -196,7 +194,6 @@ class SubsAlignBox(urwid.Frame):
                 )
 
     def keypress(self, size, key):
-        # import ipdb; ipdb.set_trace()
         if key == 'down' and self.get_focus_path() == ['body', 2, 0, len(self.subs[0])-1]:
             self.focus_position = 'footer'
         elif key == 'down' and self.get_focus_path() == ['body', 2, 1, len(self.subs[1])-1]:
@@ -204,7 +201,6 @@ class SubsAlignBox(urwid.Frame):
         elif key == 'up' and self.focus_position == 'footer':
             self.focus_position = 'body'
         elif key == 'enter' and self.focus_position == 'footer':
-            # import ipdb; ipdb.set_trace()
             self.db.align_subs(self.subs_id,
                                self.subs[0][self._find_rbutton(self.left_top)].index,
                                self.subs[1][self._find_rbutton(self.right_top)].index,
@@ -215,7 +211,6 @@ class SubsAlignBox(urwid.Frame):
             return self.focus.keypress(size, key)
 
     def _find_rbutton(self, a):
-        # import ipdb; ipdb.set_trace()
         for e in enumerate(a):
             if e[1].state is True:
                 return e[0]
@@ -239,6 +234,7 @@ class CtrlButtons(urwid.Columns):
 
 
 class TopFrame(urwid.Frame):
+    """Top application frame."""
     def __init__(self, db, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -281,6 +277,7 @@ class TopFrame(urwid.Frame):
 
 
 class App:
+    """Main application."""
     def __init__(self, db):
         self.db = db
         self.top = TopFrame(self.db, AppBox(self.db), footer=CtrlButtons(), focus_part='footer')
