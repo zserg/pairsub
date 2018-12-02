@@ -1,2 +1,5 @@
+beautifulsoup4==4.6.3
 bs4==0.0.1
+pkg-resources==0.0.0
 srt==1.6.0
+urwid==2.0.1
