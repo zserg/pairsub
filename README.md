@@ -16,7 +16,22 @@ python3
 
 SRT processing library (https://github.com/cdown/srt)
 
+urwid (Console user interface library)
+
+## Installation (virtualenv)
+```bash
+# clone repo
+git clone https://github.com/zserg/pairsubs.git
+cd pairsubs
+
+# create virtual environment
+virtualenv -p python3 venv
+. venv/bin/activate
+pip install -r requirements.txt
+
+# run app
+python pairsubs.py
+```
 ## Local subtitles database
 The information about the all downloaded subtitles is stored in ~/.pairsubs/cache.json.
-The subtitles files are stored in ~/.pairsubs/files/ directiry
-
+The subtitles files are stored in ~/.pairsubs/files/
