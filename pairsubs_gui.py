@@ -137,7 +137,7 @@ class SubsListBox(urwid.Frame):
             self.set_focus_path(['body', 0])
         elif key == 'enter' and self.focus_position == 'footer':
             self.delete_subs()
-            self.__init__(self.top_frame)
+            self.__init__(self.db, self.top_frame)
             self.focus_position = 'body'
             self.focus_position = 'footer'
         elif key == 'enter' and self.focus_position == 'body':
@@ -148,6 +148,7 @@ class SubsListBox(urwid.Frame):
             return self.focus.keypress(size, key)
 
     def delete_subs(self):
+        # import ipdb; ipdb.set_trace()
         for i, e in enumerate(self.subs.body):
             if e.get_state():
                 self.db.delete(self.subs_list[i][0])
