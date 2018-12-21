@@ -35,3 +35,5 @@ python pairsubs.py
 ## Local subtitles database
 The information about the all downloaded subtitles is stored in ~/.pairsubs/cache.json.
 The subtitles files are stored in ~/.pairsubs/files/
+.
+
